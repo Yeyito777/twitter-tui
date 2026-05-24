@@ -233,9 +233,10 @@ export function render(state: AppState): void {
   const cards: string[][] = [];
   if (state.profile) cards.push(renderProfile(state, mainW));
   for (let i = 0; i < state.items.length; i++) cards.push(renderItemCard(state.items[i], mainW, i === state.selectedIndex && timelineFocused));
+  const threadLoading = state.timelineLoading && state.feedKind === "thread";
   if (state.timelineLoading && cards.length === 0) {
     cards.push([
-      line(`${theme.muted}${truncateToWidth(loadingLabel("Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, mainW),
+      line(`${theme.muted}${truncateToWidth(loadingLabel(threadLoading ? "Loading replies…" : "Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, mainW),
     ]);
   } else if (cards.length === 0) {
     cards.push([
@@ -246,7 +247,7 @@ export function render(state: AppState): void {
   const flat: string[] = [];
   const starts: number[] = [];
   const lineItemIndexes: number[] = [];
-  if (state.timelineLoading && state.items.length > 0) {
+  if (state.timelineLoading && state.items.length > 0 && !threadLoading) {
     flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, "");
     lineItemIndexes.push(-1, -1);
   }
@@ -264,6 +265,10 @@ export function render(state: AppState): void {
   if (state.timelineLoadingOlder) {
     flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading more tweets…", state.loadingFrameIndex), mainW)}${theme.reset}`);
     lineItemIndexes.push(-1);
+  }
+  if (threadLoading && state.items.length > 0) {
+    flat.push("", `${theme.muted}${truncateToWidth(loadingLabel("Loading replies…", state.loadingFrameIndex), mainW)}${theme.reset}`);
+    lineItemIndexes.push(-1, -1);
   }
   const selectedCardIndex = state.profile ? state.selectedIndex + 1 : state.selectedIndex;
   const selectedStart = starts[selectedCardIndex] ?? 0;
