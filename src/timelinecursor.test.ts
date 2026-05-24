@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { moveTimelineCursorCols, moveTimelineCursorRows } from "./timelinecursor";
+import { moveTimelineCursorCols, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor } from "./timelinecursor";
 
 describe("timeline curswant", () => {
   test("j/k preserve preferred column across short timeline lines", () => {
@@ -41,5 +41,49 @@ describe("timeline curswant", () => {
     moveTimelineCursorRows(state, 1);
     expect(state.timelineCursorRow).toBe(2);
     expect(state.timelineCursorCol).toBe(5);
+  });
+});
+
+describe("timeline record-style ctrl scrolling", () => {
+  function scrollingState() {
+    const state = createInitialState();
+    state.timelineLinePlain = Array.from({ length: 20 }, (_, index) => ` line ${index}`);
+    state.timelineLineItemIndexes = Array.from({ length: 20 }, (_, index) => index);
+    state.items = Array.from({ length: 20 }, (_, index) => ({ id: String(index), name: "n", handle: "h", text: "t", created_at: "", url: "" }));
+    state.timelineCursorRow = 5;
+    state.timelineCursorCol = 3;
+    state.scroll = 4;
+    return state;
+  }
+
+  test("Ctrl+E/Y sticky viewport scroll keeps cursor visible like record", () => {
+    const state = scrollingState();
+    scrollTimelineViewportSticky(state, -1, 5); // Ctrl+E, down/newer
+    expect(state.scroll).toBe(5);
+    expect(state.timelineCursorRow).toBe(5);
+    scrollTimelineViewportSticky(state, 1, 5); // Ctrl+Y, up/older
+    expect(state.scroll).toBe(4);
+    expect(state.timelineCursorRow).toBe(5);
+  });
+
+  test("Ctrl+D/U move cursor and viewport by amount like record", () => {
+    const state = scrollingState();
+    scrollTimelineWithCursor(state, -1, 3, 5); // Ctrl+D
+    expect(state.scroll).toBe(7);
+    expect(state.timelineCursorRow).toBe(8);
+    expect(state.selectedIndex).toBe(8);
+    scrollTimelineWithCursor(state, 1, 3, 5); // Ctrl+U
+    expect(state.scroll).toBe(4);
+    expect(state.timelineCursorRow).toBe(5);
+  });
+
+  test("Ctrl+F/B page viewport first and clamp cursor into view like record", () => {
+    const state = scrollingState();
+    scrollTimelinePageWithCursor(state, -1, 5, 5); // Ctrl+F
+    expect(state.scroll).toBe(9);
+    expect(state.timelineCursorRow).toBe(9);
+    scrollTimelinePageWithCursor(state, 1, 5, 5); // Ctrl+B
+    expect(state.scroll).toBe(4);
+    expect(state.timelineCursorRow).toBe(8);
   });
 });

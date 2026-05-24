@@ -7,6 +7,11 @@
  */
 
 import type { AppState } from "./state";
+import {
+  scrollByAmountWithCursorInViewport,
+  scrollLineWithStickyCursorInViewport,
+  scrollPageWithCursorInViewport,
+} from "./vimscroll";
 
 const ANSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\]8;[^;]*;[^\x1b]*\x1b\\/g;
 
@@ -101,4 +106,46 @@ export function syncTimelineCursorToSelection(state: AppState, starts: number[])
     state.timelineCurswant = null;
   }
   clampTimelineCursor(state);
+}
+
+export function scrollTimelineWithCursor(state: AppState, dir: number, amount: number, visibleRows: number): void {
+  if (state.timelineLinePlain.length === 0) return;
+  const next = scrollByAmountWithCursorInViewport({
+    totalLines: state.timelineLinePlain.length,
+    viewportHeight: visibleRows,
+    viewStart: state.scroll,
+    cursorRow: state.timelineCursorRow,
+  }, dir, amount);
+  state.timelineCursorRow = next.cursorRow;
+  state.timelineCursorCol = clampTimelineCol(state.timelineCurswant ?? state.timelineCursorCol, state.timelineLinePlain, state.timelineCursorRow);
+  state.scroll = next.viewStart;
+  syncTimelineSelectionToCursor(state);
+}
+
+export function scrollTimelinePageWithCursor(state: AppState, dir: number, amount: number, visibleRows: number): void {
+  if (state.timelineLinePlain.length === 0) return;
+  const next = scrollPageWithCursorInViewport({
+    totalLines: state.timelineLinePlain.length,
+    viewportHeight: visibleRows,
+    viewStart: state.scroll,
+    cursorRow: state.timelineCursorRow,
+  }, dir, amount);
+  state.timelineCursorRow = next.cursorRow;
+  state.timelineCursorCol = clampTimelineCol(state.timelineCurswant ?? state.timelineCursorCol, state.timelineLinePlain, state.timelineCursorRow);
+  state.scroll = next.viewStart;
+  syncTimelineSelectionToCursor(state);
+}
+
+export function scrollTimelineViewportSticky(state: AppState, dir: number, visibleRows: number): void {
+  if (state.timelineLinePlain.length === 0) return;
+  const next = scrollLineWithStickyCursorInViewport({
+    totalLines: state.timelineLinePlain.length,
+    viewportHeight: visibleRows,
+    viewStart: state.scroll,
+    cursorRow: state.timelineCursorRow,
+  }, dir);
+  state.timelineCursorRow = next.cursorRow;
+  state.timelineCursorCol = clampTimelineCol(state.timelineCurswant ?? state.timelineCursorCol, state.timelineLinePlain, state.timelineCursorRow);
+  state.scroll = next.viewStart;
+  syncTimelineSelectionToCursor(state);
 }

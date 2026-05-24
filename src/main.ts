@@ -7,7 +7,7 @@ import { parseInput, PasteBuffer, type KeyEvent } from "./input";
 import { render } from "./render";
 import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS } from "./state";
 import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingNewerTimeline, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadNewerTimeline, shouldLoadOlderTimeline, startLoadingNewerTimeline, startLoadingOlderTimeline } from "./timelineloading";
-import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, setTimelineCursorToRow } from "./timelinecursor";
+import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor, setTimelineCursorToRow } from "./timelinecursor";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
 import { setTheme, THEME_NAMES, type ThemeName } from "./theme";
 import { disableBracketedPaste, disableKittyKeyboard, enterAlt, enableBracketedPaste, enableKittyKeyboard, leaveAlt, resetCursorColor, setCursorColor } from "./terminal";
@@ -394,6 +394,23 @@ function afterTimelineCursorMove(): void {
   void maybeLoadNewerTimeline();
 }
 
+function timelinePageSize(): number {
+  const rows = Math.max(10, state.rows);
+  const statusRows = 1;
+  const promptRows = 1;
+  const bodyTop = 3;
+  return Math.max(1, (rows - statusRows - promptRows - 2) - bodyTop);
+}
+
+function scrollFocusedTimeline(kind: "line" | "amount" | "page", dir: number, amount: number): void {
+  if (!timelineFocused()) return;
+  const visibleRows = timelinePageSize();
+  if (kind === "line") scrollTimelineViewportSticky(state, dir, visibleRows);
+  else if (kind === "page") scrollTimelinePageWithCursor(state, dir, amount, visibleRows);
+  else scrollTimelineWithCursor(state, dir, amount, visibleRows);
+  afterTimelineCursorMove();
+}
+
 function commandHistory(delta: number): boolean {
   if (state.commandHistory.length === 0 || state.editor.buffer.length > 0 && state.commandHistoryIndex === null) return false;
   const start = state.commandHistoryIndex ?? state.commandHistory.length;
@@ -484,6 +501,16 @@ async function handleGlobalKey(key: KeyEvent): Promise<boolean> {
   if (key.type === "ctrl-r") {
     void refresh();
     return true;
+  }
+  if (timelineFocused()) {
+    const halfPage = Math.max(1, Math.floor(timelinePageSize() / 2));
+    const fullPage = Math.max(1, timelinePageSize());
+    if (key.type === "ctrl-e") { scrollFocusedTimeline("line", -1, 1); return true; }
+    if (key.type === "ctrl-y") { scrollFocusedTimeline("line", 1, 1); return true; }
+    if (key.type === "ctrl-d") { scrollFocusedTimeline("amount", -1, halfPage); return true; }
+    if (key.type === "ctrl-u") { scrollFocusedTimeline("amount", 1, halfPage); return true; }
+    if (key.type === "ctrl-f") { scrollFocusedTimeline("page", -1, fullPage); return true; }
+    if (key.type === "ctrl-b") { scrollFocusedTimeline("page", 1, fullPage); return true; }
   }
   return false;
 }
