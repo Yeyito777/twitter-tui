@@ -283,7 +283,7 @@ export function render(state: AppState): void {
   const threadLoading = state.timelineLoading && state.feedKind === "thread";
   if (state.timelineLoading && cards.length === 0) {
     cards.push([
-      line(`${theme.muted}${truncateToWidth(loadingLabel(threadLoading ? "Loading replies…" : "Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, mainW),
+      line(`${theme.muted}${truncateToWidth(loadingLabel(threadLoading ? "Loading replies…" : state.timelineLoadingLabel, state.loadingFrameIndex), mainW)}${theme.reset}`, mainW),
     ]);
   } else if (cards.length === 0) {
     cards.push([
@@ -295,7 +295,7 @@ export function render(state: AppState): void {
   const starts: number[] = [];
   const lineItemIndexes: number[] = [];
   if (state.timelineLoading && state.items.length > 0 && !threadLoading) {
-    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, "");
+    flat.push(`${theme.muted}${truncateToWidth(loadingLabel(state.timelineLoadingLabel, state.loadingFrameIndex), mainW)}${theme.reset}`, "");
     lineItemIndexes.push(-1, -1);
   }
   for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {

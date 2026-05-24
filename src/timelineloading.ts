@@ -5,11 +5,26 @@
 import type { AppState } from "./state";
 import type { FeedResult, TimelineItem } from "./types";
 
-export function beginTimelineLoad(state: AppState): number {
+export function beginTimelineLoad(state: AppState, label = "Loading timeline…", clear = false): number {
   const requestId = ++state.timelineRequestId;
   state.timelineLoading = true;
+  state.timelineLoadingLabel = label;
   state.timelineLoadingOlder = false;
   state.timelineLoadingNewer = false;
+  if (clear) {
+    state.items = [];
+    state.profile = null;
+    state.cursors = {};
+    state.timelineHasOlder = false;
+    state.timelineHasNewer = false;
+    state.selectedIndex = 0;
+    state.scroll = 0;
+    state.timelineCursorRow = 0;
+    state.timelineCursorCol = 1;
+    state.timelineCurswant = null;
+    state.timelineLineItemIndexes = [];
+    state.timelineLinePlain = [];
+  }
   return requestId;
 }
 

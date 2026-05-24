@@ -64,6 +64,7 @@ export interface AppState {
   account: Account | null;
   cursors: { top?: string; bottom?: string };
   timelineLoading: boolean;
+  timelineLoadingLabel: string;
   timelineLoadingOlder: boolean;
   timelineLoadingNewer: boolean;
   timelineHasOlder: boolean;
@@ -107,6 +108,7 @@ export function createInitialState(): AppState {
     account: null,
     cursors: {},
     timelineLoading: false,
+    timelineLoadingLabel: "Loading timeline…",
     timelineLoadingOlder: false,
     timelineLoadingNewer: false,
     timelineHasOlder: false,

@@ -94,8 +94,25 @@ function applyFeed(feed: FeedResult, args: string[]): void {
   }
 }
 
+function loadingLabelFor(title: string, args: string[]): string {
+  if (args[0] === "timeline" && args.includes("--latest")) return "Loading latest…";
+  if (args[0] === "timeline") return "Loading timeline…";
+  if (args[0] === "notifications") return "Loading notifs…";
+  if (args[0] === "bookmarks") return "Loading bookmarks…";
+  if (args[0] === "trending") return "Loading trends…";
+  if (args[0] === "dms") return "Loading DMs…";
+  if (args[0] === "search") return "Loading search…";
+  if (args[0] === "tweets") return `Loading @${String(args[1] ?? "user").replace(/^@/, "")}…`;
+  if (args[0] === "thread") return "Loading replies…";
+  return `Loading ${title.toLowerCase()}…`;
+}
+
+function shouldClearBeforeLoad(args: string[]): boolean {
+  return ["timeline", "notifications", "bookmarks", "trending", "dms", "search", "tweets", "profile"].includes(args[0] ?? "");
+}
+
 async function load(args: string[], title = "Loading"): Promise<void> {
-  const seq = beginTimelineLoad(state);
+  const seq = beginTimelineLoad(state, loadingLabelFor(title, args), shouldClearBeforeLoad(args));
   requestSeq = seq;
   setNotice(state, "", "muted", false);
   syncLoading();

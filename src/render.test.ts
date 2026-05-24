@@ -28,6 +28,27 @@ describe("timeline loading render", () => {
     expect(output).not.toContain("Loading timeline");
     expect(output.indexOf("Loading replies")).toBeGreaterThan(output.indexOf("main tweet"));
   });
+
+  test("cleared top-level view loads render specific loading labels", () => {
+    const state = createInitialState();
+    state.cols = 100;
+    state.rows = 24;
+    state.timelineLoading = true;
+    state.timelineLoadingLabel = "Loading latest…";
+    state.items = [];
+
+    let output = "";
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (chunk: string | Uint8Array) => { output += String(chunk); return true; };
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(output).toContain("Loading latest");
+    expect(output).not.toContain("Loading timeline");
+  });
 });
 
 describe("prompt visual render", () => {
