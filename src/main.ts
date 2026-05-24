@@ -6,7 +6,7 @@ import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
 import { render } from "./render";
 import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS } from "./state";
-import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingNewerTimeline, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadNewerTimeline, shouldLoadOlderTimeline, startLoadingNewerTimeline, startLoadingOlderTimeline } from "./timelineloading";
+import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadOlderTimeline, startLoadingOlderTimeline } from "./timelineloading";
 import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor, setTimelineCursorToRow } from "./timelinecursor";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
 import { setTheme, THEME_NAMES, type ThemeName } from "./theme";
@@ -127,23 +127,6 @@ async function maybeLoadOlderTimeline(): Promise<void> {
     finishLoadingOlderTimeline(state, feed);
   } catch (error) {
     finishLoadingOlderTimeline(state, null);
-    setNotice(state, error instanceof Error ? error.message : String(error), "error");
-  } finally {
-    syncLoading();
-    scheduleRender();
-  }
-}
-
-async function maybeLoadNewerTimeline(): Promise<void> {
-  if (!shouldLoadNewerTimeline(state) || !state.cursors.top) return;
-  startLoadingNewerTimeline(state);
-  syncLoading();
-  scheduleRender();
-  try {
-    const feed = await loadFeed(cursorArgs(state.lastArgs, state.cursors.top));
-    finishLoadingNewerTimeline(state, feed);
-  } catch (error) {
-    finishLoadingNewerTimeline(state, null);
     setNotice(state, error instanceof Error ? error.message : String(error), "error");
   } finally {
     syncLoading();
@@ -391,7 +374,6 @@ function timelineFocused(): boolean {
 
 function afterTimelineCursorMove(): void {
   void maybeLoadOlderTimeline();
-  void maybeLoadNewerTimeline();
 }
 
 function timelinePageSize(): number {

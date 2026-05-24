@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { beginTimelineLoad, cursorArgs, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadOlderTimeline } from "./timelineloading";
+import { beginTimelineLoad, cursorArgs, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadNewerTimeline, shouldLoadOlderTimeline } from "./timelineloading";
 import type { FeedResult } from "./types";
 
 function feed(id: string, bottom?: string): FeedResult {
@@ -36,5 +36,14 @@ describe("timeline loading helpers", () => {
     finishLoadingOlderTimeline(state, { ...feed("2", "NEXT"), items: [...feed("1").items, ...feed("2").items] });
     expect(state.items.map((item) => "id" in item ? item.id : "")).toEqual(["1", "2"]);
     expect(state.cursors.bottom).toBe("NEXT");
+  });
+
+  test("twitter timeline never loads newer tweets upward", () => {
+    const state = createInitialState();
+    setTimelineFeed(state, { ...feed("1", "BOTTOM"), cursors: { top: "TOP", bottom: "BOTTOM" } }, ["timeline"]);
+    state.timelineLinePlain = Array.from({ length: 20 }, (_, i) => `line ${i}`);
+    state.timelineCursorRow = 0;
+    expect(state.timelineHasNewer).toBe(false);
+    expect(shouldLoadNewerTimeline(state)).toBe(false);
   });
 });

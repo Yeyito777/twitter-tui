@@ -20,7 +20,7 @@ export function setTimelineFeed(state: AppState, feed: FeedResult, args: string[
   state.profile = feed.profile ?? null;
   state.cursors = feed.cursors ?? {};
   state.timelineHasOlder = Boolean(feed.cursors?.bottom);
-  state.timelineHasNewer = Boolean(feed.cursors?.top);
+  state.timelineHasNewer = false;
   state.timelineLoading = false;
   state.timelineLoadingOlder = false;
   state.timelineLoadingNewer = false;
@@ -39,8 +39,7 @@ export function shouldLoadOlderTimeline(state: AppState): boolean {
 }
 
 export function shouldLoadNewerTimeline(state: AppState): boolean {
-  if (state.timelineLoading || state.timelineLoadingOlder || state.timelineLoadingNewer || !state.timelineHasNewer || state.items.length === 0) return false;
-  return state.timelineCursorRow <= 4;
+  return false;
 }
 
 export function startLoadingOlderTimeline(state: AppState): void {
@@ -49,8 +48,7 @@ export function startLoadingOlderTimeline(state: AppState): void {
 }
 
 export function startLoadingNewerTimeline(state: AppState): void {
-  if (!shouldLoadNewerTimeline(state)) return;
-  state.timelineLoadingNewer = true;
+  state.timelineLoadingNewer = false;
 }
 
 export function finishLoadingOlderTimeline(state: AppState, feed: FeedResult | null): void {
@@ -59,25 +57,8 @@ export function finishLoadingOlderTimeline(state: AppState, feed: FeedResult | n
   const before = state.items.length;
   state.items = dedupeItems([...state.items, ...(feed.items ?? [])]);
   state.cursors.bottom = feed.cursors?.bottom;
-  if (feed.cursors?.top) state.cursors.top = feed.cursors.top;
   state.timelineHasOlder = Boolean(feed.cursors?.bottom) && state.items.length > before;
-  state.timelineHasNewer = Boolean(state.cursors.top);
-}
-
-export function finishLoadingNewerTimeline(state: AppState, feed: FeedResult | null): void {
-  state.timelineLoadingNewer = false;
-  if (!feed) return;
-  const beforeRows = state.timelineLinePlain.length;
-  const beforeItems = state.items.length;
-  state.items = dedupeItems([...(feed.items ?? []), ...state.items]);
-  state.cursors.top = feed.cursors?.top;
-  if (feed.cursors?.bottom) state.cursors.bottom = feed.cursors.bottom;
-  state.timelineHasNewer = Boolean(feed.cursors?.top) && state.items.length > beforeItems;
-  state.timelineHasOlder = Boolean(state.cursors.bottom);
-  const insertedItems = Math.max(0, state.items.length - beforeItems);
-  if (insertedItems > 0) state.selectedIndex += insertedItems;
-  // Preserve the visible window approximately until render can clamp exactly.
-  state.scroll += Math.max(0, state.timelineLinePlain.length - beforeRows);
+  state.timelineHasNewer = false;
 }
 
 export function failTimelineLoad(state: AppState): void {

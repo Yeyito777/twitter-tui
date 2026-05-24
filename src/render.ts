@@ -250,10 +250,6 @@ export function render(state: AppState): void {
     flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, "");
     lineItemIndexes.push(-1, -1);
   }
-  if (state.timelineLoadingNewer) {
-    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading newer tweets…", state.loadingFrameIndex), mainW)}${theme.reset}`, "");
-    lineItemIndexes.push(-1, -1);
-  }
   for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {
     const card = cards[cardIndex];
     starts.push(flat.length);
@@ -266,7 +262,7 @@ export function render(state: AppState): void {
     lineItemIndexes.push(itemIndex);
   }
   if (state.timelineLoadingOlder) {
-    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading older tweets…", state.loadingFrameIndex), mainW)}${theme.reset}`);
+    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading more tweets…", state.loadingFrameIndex), mainW)}${theme.reset}`);
     lineItemIndexes.push(-1);
   }
   const selectedCardIndex = state.profile ? state.selectedIndex + 1 : state.selectedIndex;
