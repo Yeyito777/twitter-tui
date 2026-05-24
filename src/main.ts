@@ -443,7 +443,7 @@ function timelinePageSize(): number {
 }
 
 function scrollFocusedTimeline(kind: "line" | "amount" | "page", dir: number, amount: number): void {
-  if (!timelineFocused()) return;
+  if (state.panelFocus !== "content") return;
   const visibleRows = timelinePageSize();
   if (kind === "line") scrollTimelineViewportSticky(state, dir, visibleRows);
   else if (kind === "page") scrollTimelinePageWithCursor(state, dir, amount, visibleRows);
@@ -543,7 +543,7 @@ async function handleGlobalKey(key: KeyEvent): Promise<boolean> {
     void refresh();
     return true;
   }
-  if (timelineFocused()) {
+  if (state.panelFocus === "content") {
     const halfPage = Math.max(1, Math.floor(timelinePageSize() / 2));
     const fullPage = Math.max(1, timelinePageSize());
     if (key.type === "ctrl-e") { scrollFocusedTimeline("line", -1, 1); return true; }
