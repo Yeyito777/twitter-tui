@@ -6,6 +6,7 @@ import type { AppState } from "./state";
 import { theme } from "./theme";
 import { clampTimelineCol, moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, setTimelineCursorToRow, stripTimelineAnsi, timelineContentBounds } from "./timelinecursor";
 import { renderLineWithSelection } from "./historyrender";
+import { resetPending as resetEditorPending } from "./editor-types";
 
 type TimelineCursor = { row: number; col: number };
 
@@ -16,13 +17,7 @@ function isVisualMode(state: AppState): boolean {
 }
 
 function resetPending(state: AppState): void {
-  state.editor.pendingKeys = "";
-  state.editor.pendingOperator = null;
-  state.editor.pendingOperatorKey = null;
-  state.editor.pendingTextObjectModifier = null;
-  state.editor.count = null;
-  state.editor.pendingFind = null;
-  state.editor.pendingReplace = false;
+  resetEditorPending(state.editor);
 }
 
 function normalizeSelection(anchor: TimelineCursor, cursor: TimelineCursor): TimelineRange {
@@ -174,6 +169,7 @@ export function handleTimelineVisualKey(state: AppState, key: KeyEvent, onMove?:
     resetPending(state);
     return true;
   }
+  const visual = isVisualMode(state);
   if (key.type === "left") { moveTimelineCursorCols(state, -1); onMove?.(); return true; }
   if (key.type === "right") { moveTimelineCursorCols(state, 1); onMove?.(); return true; }
   if (key.type === "up") { moveTimelineCursorRows(state, -1); onMove?.(); return true; }
@@ -183,7 +179,7 @@ export function handleTimelineVisualKey(state: AppState, key: KeyEvent, onMove?:
   if (key.type !== "char" || !key.char) return false;
 
   const c = key.char;
-  if (isVisualMode(state)) {
+  if (visual) {
     if ((c === "v" && state.editor.mode === "visual") || (c === "V" && state.editor.mode === "visual-line")) {
       state.editor.mode = "normal";
       resetPending(state);
@@ -202,6 +198,9 @@ export function handleTimelineVisualKey(state: AppState, key: KeyEvent, onMove?:
       if (c === "y") {
         const text = stripTimelineAnsi(state.timelineLinePlain[state.timelineCursorRow] ?? "").trimEnd();
         if (text) copyToClipboard(text);
+      } else {
+        resetPending(state);
+        return false;
       }
       resetPending(state);
       return true;
@@ -224,30 +223,32 @@ export function handleTimelineVisualKey(state: AppState, key: KeyEvent, onMove?:
       state.editor.pendingKeys = "y";
       return true;
     }
+    return false;
   }
 
   switch (c) {
-    case "h": moveTimelineCursorCols(state, -1); break;
-    case "l": moveTimelineCursorCols(state, 1); break;
-    case "j": moveTimelineCursorRows(state, 1); break;
-    case "k": moveTimelineCursorRows(state, -1); break;
-    case "0": moveTimelineCursorLineStart(state); break;
-    case "$": moveTimelineCursorLineEnd(state); break;
+    case "h": if (!visual) return false; moveTimelineCursorCols(state, -1); break;
+    case "l": if (!visual) return false; moveTimelineCursorCols(state, 1); break;
+    case "j": if (!visual) return false; moveTimelineCursorRows(state, 1); break;
+    case "k": if (!visual) return false; moveTimelineCursorRows(state, -1); break;
+    case "0": if (!visual) return false; moveTimelineCursorLineStart(state); break;
+    case "$": if (!visual) return false; moveTimelineCursorLineEnd(state); break;
     case "g":
+      if (!visual && state.editor.pendingKeys !== "g") return false;
       if (state.editor.pendingKeys === "g") {
         setTimelineCursorToRow(state, 0);
         resetPending(state);
-      } else {
+      } else if (visual) {
         state.editor.pendingKeys = "g";
         return true;
       }
       break;
-    case "G": setTimelineCursorToRow(state, Math.max(0, state.timelineLinePlain.length - 1)); break;
-    case "w": wordForward(state); break;
-    case "b": wordBackward(state); break;
-    case "e": wordEnd(state); break;
-    case "f": state.editor.pendingFind = "f"; return true;
-    case "F": state.editor.pendingFind = "F"; return true;
+    case "G": if (!visual) return false; setTimelineCursorToRow(state, Math.max(0, state.timelineLinePlain.length - 1)); break;
+    case "w": if (!visual) return false; wordForward(state); break;
+    case "b": if (!visual) return false; wordBackward(state); break;
+    case "e": if (!visual) return false; wordEnd(state); break;
+    case "f": if (!visual) return false; state.editor.pendingFind = "f"; return true;
+    case "F": if (!visual) return false; state.editor.pendingFind = "F"; return true;
     case ";": {
       const last = state.editor.lastFind;
       if (last) last.direction === "f" ? findForward(state, last.char) : findBackward(state, last.char);

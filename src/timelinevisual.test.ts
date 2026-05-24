@@ -5,6 +5,19 @@ import { theme } from "./theme";
 import { renderLineWithSelection } from "./historyrender";
 
 describe("timeline visual mode", () => {
+  test("normal timeline action keys are not swallowed by visual handler", () => {
+    const state = createInitialState();
+    state.timelineLinePlain = [" hello world"];
+    state.timelineLineItemIndexes = [0];
+    state.timelineCursorRow = 0;
+    state.timelineCursorCol = 1;
+
+    expect(handleTimelineVisualKey(state, { type: "char", char: "b" })).toBe(false);
+    expect(handleTimelineVisualKey(state, { type: "char", char: "r" })).toBe(false);
+    expect(handleTimelineVisualKey(state, { type: "char", char: "w" })).toBe(false);
+    expect(state.timelineCursorCol).toBe(1);
+  });
+
   test("v enters character visual mode and y exits after yanking", () => {
     const state = createInitialState();
     state.timelineLinePlain = [" hello world"];
@@ -31,6 +44,19 @@ describe("timeline visual mode", () => {
     handleTimelineVisualKey(state, { type: "char", char: "j" });
     expect(state.editor.mode).toBe("visual-line");
     expect(getTimelineVisualSelection(state)).toBe(" first\n second");
+  });
+
+  test("visual mode owns movement keys while active", () => {
+    const state = createInitialState();
+    state.timelineLinePlain = [" hello", " world"];
+    state.timelineLineItemIndexes = [0, 0];
+    state.timelineCursorRow = 0;
+    state.timelineCursorCol = 1;
+    handleTimelineVisualKey(state, { type: "char", char: "v" });
+
+    expect(handleTimelineVisualKey(state, { type: "char", char: "j" })).toBe(true);
+    expect(state.timelineCursorRow).toBe(1);
+    expect(state.editor.mode).toBe("visual");
   });
 
   test("selection renderer applies selection background", () => {

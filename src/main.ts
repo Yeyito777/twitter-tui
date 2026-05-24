@@ -580,28 +580,39 @@ async function handlePromptKey(key: KeyEvent): Promise<void> {
 async function handleKey(key: KeyEvent): Promise<void> {
   if (await handleGlobalKey(key)) return;
   if (state.panelFocus === "content" && state.contentFocus === "prompt") {
-    if (state.editor.mode === "normal" && key.type === "char") {
-      switch (key.char) {
-        case "q": running = false; shutdown(); return;
-        case "j": focusTimeline(state); moveSelection(1); return;
-        case "k": focusTimeline(state); moveSelection(-1); return;
-        case "/": resetEditor(state.editor, "/", "insert"); return;
-      }
-    }
     await handlePromptKey(key);
     return;
   }
 
-  if (timelineFocused() && (state.editor.mode === "visual" || state.editor.mode === "visual-line" || key.type === "escape" || (key.type === "char" && ["v", "V", "y", "w", "b", "e", "f", "F", ";", ","].includes(key.char ?? "")))) {
-    if (handleTimelineVisualKey(state, key, afterTimelineCursorMove)) return;
+  if (state.panelFocus === "sidebar") {
+    if (key.type === "escape") { focusPrompt(state); return; }
+    if (key.type === "enter") { await activateSelection(); return; }
+    if (key.type === "up") { sidebarMove(-1); return; }
+    if (key.type === "down") { sidebarMove(1); return; }
+    if (key.type !== "char" || !key.char) return;
+    switch (key.char) {
+      case "q": running = false; shutdown(); return;
+      case "i": focusPrompt(state); return;
+      case "/": setPrompt("/"); return;
+      case "t": focusTimeline(state); return;
+      case "j": sidebarMove(1); return;
+      case "k": sidebarMove(-1); return;
+      case "g": state.sidebarIndex = 0; return;
+      case "G": state.sidebarIndex = VIEWS.length - 1; return;
+    }
+    return;
   }
+
+  if (!timelineFocused()) return;
+
+  if (handleTimelineVisualKey(state, key, afterTimelineCursorMove)) return;
 
   if (key.type === "escape") { focusPrompt(state); return; }
   if (key.type === "enter") { await activateSelection(); return; }
-  if (key.type === "up") { state.panelFocus === "sidebar" ? sidebarMove(-1) : timelineFocused() ? (moveTimelineCursorRows(state, -1), afterTimelineCursorMove()) : moveSelection(-1); return; }
-  if (key.type === "down") { state.panelFocus === "sidebar" ? sidebarMove(1) : timelineFocused() ? (moveTimelineCursorRows(state, 1), afterTimelineCursorMove()) : moveSelection(1); return; }
-  if (key.type === "left") { if (timelineFocused()) moveTimelineCursorCols(state, -1); return; }
-  if (key.type === "right") { if (timelineFocused()) moveTimelineCursorCols(state, 1); return; }
+  if (key.type === "up") { moveTimelineCursorRows(state, -1); afterTimelineCursorMove(); return; }
+  if (key.type === "down") { moveTimelineCursorRows(state, 1); afterTimelineCursorMove(); return; }
+  if (key.type === "left") { moveTimelineCursorCols(state, -1); return; }
+  if (key.type === "right") { moveTimelineCursorCols(state, 1); return; }
   if (key.type !== "char" || !key.char) return;
   switch (key.char) {
     case "q": running = false; shutdown(); return;
@@ -609,22 +620,15 @@ async function handleKey(key: KeyEvent): Promise<void> {
     case "a": focusPrompt(state); resetEditor(state.editor, state.editor.buffer, "insert"); state.editor.cursor = state.editor.buffer.length; return;
     case "/": setPrompt("/"); return;
     case "s": focusSidebar(state); return;
-    case "t": focusTimeline(state); return;
-    case "j": state.panelFocus === "sidebar" ? sidebarMove(1) : timelineFocused() ? (moveTimelineCursorRows(state, 1), afterTimelineCursorMove()) : moveSelection(1); return;
-    case "k": state.panelFocus === "sidebar" ? sidebarMove(-1) : timelineFocused() ? (moveTimelineCursorRows(state, -1), afterTimelineCursorMove()) : moveSelection(-1); return;
-    case "h": if (timelineFocused()) moveTimelineCursorCols(state, -1); return;
+    case "j": moveTimelineCursorRows(state, 1); afterTimelineCursorMove(); return;
+    case "k": moveTimelineCursorRows(state, -1); afterTimelineCursorMove(); return;
+    case "h": moveTimelineCursorCols(state, -1); return;
     case "H": if (goBackToSavedTimeline()) return; break;
-    case "l": if (timelineFocused()) { moveTimelineCursorCols(state, 1); return; }
-      {
-        const id = selectedTweetId();
-        if (id) void action("Liking", ["like", id]);
-        else setNotice(state, "Select a tweet to like", "warning");
-        return;
-      }
-    case "0": if (timelineFocused()) moveTimelineCursorLineStart(state); return;
-    case "$": if (timelineFocused()) moveTimelineCursorLineEnd(state); return;
-    case "g": state.panelFocus === "sidebar" ? state.sidebarIndex = 0 : timelineFocused() ? (setTimelineCursorToRow(state, 0), afterTimelineCursorMove()) : (state.selectedIndex = 0, state.scroll = 0); return;
-    case "G": state.panelFocus === "sidebar" ? state.sidebarIndex = VIEWS.length - 1 : timelineFocused() ? (setTimelineCursorToRow(state, Math.max(0, state.timelineLinePlain.length - 1)), afterTimelineCursorMove()) : (state.selectedIndex = Math.max(0, state.items.length - 1)); return;
+    case "l": moveTimelineCursorCols(state, 1); return;
+    case "0": moveTimelineCursorLineStart(state); return;
+    case "$": moveTimelineCursorLineEnd(state); return;
+    case "g": setTimelineCursorToRow(state, 0); afterTimelineCursorMove(); return;
+    case "G": setTimelineCursorToRow(state, Math.max(0, state.timelineLinePlain.length - 1)); afterTimelineCursorMove(); return;
     case "r": prepareReply(); return;
     case "Q": prepareQuote(); return;
     case "b": {
