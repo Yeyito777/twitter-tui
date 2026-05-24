@@ -103,7 +103,7 @@ export function displayTweetText(tweet: TweetItem): string {
   return text.replace(new RegExp(`^@${escaped}\\s+`, "i"), "");
 }
 
-function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): string[] {
+export function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): string[] {
   const subject = tweetSubject(tweet);
   const bg = selected ? theme.historyLineBg : "";
   const color = authorColor(subject.handle || subject.id);
@@ -119,11 +119,11 @@ function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): st
   }
   if (subject.quoted) {
     const quoted = subject.quoted;
-    out.push(line(` ${theme.dim}quote @${quoted.handle}${theme.reset}`, width, bg));
-    for (const qline of wrapPlain(quoted.text || "", Math.max(4, inner - 2)).slice(0, 4)) {
-      out.push(line(` ${theme.dim}${truncateToWidth(qline, inner)}${theme.reset}`, width, bg));
+    out.push(line(` ${theme.dim}▎ quote @${quoted.handle}${theme.reset}`, width, bg));
+    for (const qline of wrapPlain(quoted.text || "", Math.max(4, inner - 4)).slice(0, 4)) {
+      out.push(line(` ${theme.dim}▎ ${truncateToWidth(qline, inner - 2)}${theme.reset}`, width, bg));
     }
-    out.push(line(` ${theme.dim}♥ ${compact(quoted.likes)}  ↻ ${compact(quoted.retweets)}${theme.reset}`, width, bg));
+    out.push(line(` ${theme.dim}▎ ♥ ${compact(quoted.likes)}  ↻ ${compact(quoted.retweets)}${theme.reset}`, width, bg));
   }
   for (const media of subject.media ?? []) {
     const label = `${theme.tool}📎 ${media.type}${theme.reset} ${theme.dim}${media.url || media.expanded_url || "media"}${theme.reset}`;

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { displayTweetText, render } from "./render";
+import { displayTweetText, render, renderTweetCard } from "./render";
 import { theme } from "./theme";
 
 describe("timeline loading render", () => {
@@ -109,5 +109,33 @@ describe("tweet text display", () => {
   test("non-leading mentions and non-replies are preserved", () => {
     expect(displayTweetText({ id: "3", name: "B", handle: "b", text: "hey @alice", created_at: "", url: "" })).toBe("hey @alice");
     expect(displayTweetText({ id: "4", name: "B", handle: "b", text: "cc @alice hey", created_at: "", url: "", is_reply: true, in_reply_to: "alice" })).toBe("cc @alice hey");
+  });
+});
+
+describe("quoted tweet render", () => {
+  test("quote tweets use markdown-style quote block gutter", () => {
+    const rows = renderTweetCard({
+      id: "1",
+      name: "A",
+      handle: "a",
+      text: "parent",
+      created_at: "",
+      url: "",
+      quoted: {
+        id: "2",
+        name: "B",
+        handle: "b",
+        text: "quoted line one\nquoted line two",
+        created_at: "",
+        url: "",
+        likes: 1,
+        retweets: 2,
+      },
+    }, 80, false).join("\n");
+
+    expect(rows).toContain("▎ quote @b");
+    expect(rows).toContain("▎ quoted line one");
+    expect(rows).toContain("▎ quoted line two");
+    expect(rows).toContain("▎ ♥ 1  ↻ 2");
   });
 });
