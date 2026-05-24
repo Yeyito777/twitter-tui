@@ -1,0 +1,25 @@
+{
+  "name": "twitter-tui",
+  "version": "0.1.0",
+  "description": "A record-style terminal UI for Twitter/X built with Bun and TypeScript.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "twitter-tui": "bin/twitter-tui"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yeyito777/twitter-tui.git"
+  },
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "dev": "bun run --watch src/main.ts",
+    "test": "bun test",
+    "typecheck": "bunx tsc -p tsconfig.json --noEmit",
+    "check": "bun run typecheck && bun run test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.2"
+  }
+}
