@@ -340,13 +340,18 @@ export function render(state: AppState): void {
 
   const mode = state.editor.mode === "insert" ? "I" : state.editor.mode === "normal" ? "N" : "V";
   const modeColor = state.editor.mode === "insert" ? theme.vimInsert : state.editor.mode === "normal" ? theme.vimNormal : theme.vimVisual;
+  const promptColor = promptFocused ? theme.accent : theme.borderUnfocused;
   const offsets = wrappedLineOffsets(state.editor.buffer, promptInner);
   const promptInVisual = promptFocused && (state.editor.mode === "visual" || state.editor.mode === "visual-line");
   const promptSelection = promptInVisual ? getVisualRange(state.editor.buffer, state.editor.visualAnchor, state.editor.cursor, state.editor.mode) : null;
   let cursorRow = promptTop;
   let cursorCol = mainCol + PROMPT_PREFIX_WIDTH + input.cursorCol;
   for (let i = 0; i < promptRows; i++) {
-    const prefix = i === 0 ? `${modeColor}${mode}${theme.reset}${theme.prompt} ›${theme.reset} ` : `${theme.dim}  ·${theme.reset} `;
+    const isFirst = i === 0 && !input.isNewLine[i];
+    const promptGlyph = isFirst ? ">" : "+";
+    const prefix = isFirst
+      ? `${modeColor}${mode}${theme.reset} ${promptColor}${promptGlyph}${theme.reset} `
+      : `  ${promptColor}${promptGlyph}${theme.reset} `;
     const text = input.lines[i] ?? "";
     const lineContent = promptSelection
       ? highlightPromptSelection(text, input.scrollOffset + i, promptSelection.start, promptSelection.endExclusive, offsets)
