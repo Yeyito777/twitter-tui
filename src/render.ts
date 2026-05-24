@@ -274,8 +274,8 @@ export function render(state: AppState): void {
     lineItemIndexes.push(-1);
   }
   if (threadLoading && state.items.length > 0) {
-    flat.push("", `${theme.muted}${truncateToWidth(loadingLabel("Loading replies…", state.loadingFrameIndex), mainW)}${theme.reset}`);
-    lineItemIndexes.push(-1, -1);
+    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading replies…", state.loadingFrameIndex), mainW)}${theme.reset}`);
+    lineItemIndexes.push(-1);
   }
   const selectedCardIndex = state.profile ? state.selectedIndex + 1 : state.selectedIndex;
   const selectedStart = starts[selectedCardIndex] ?? 0;
