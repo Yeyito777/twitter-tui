@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { decodeHtmlEntities, displayTweetText, render, renderTweetCard } from "./render";
+import { colorizeHandles, decodeHtmlEntities, displayTweetText, render, renderTweetCard } from "./render";
 import { theme } from "./theme";
 
 describe("timeline loading render", () => {
@@ -114,6 +114,14 @@ describe("timeline visual render", () => {
 });
 
 describe("tweet text display", () => {
+  test("@handles inside tweet text are colorized like names", () => {
+    const colorized = colorizeHandles("hi @alice and x@y.com @bob_123");
+    expect(colorized).toContain("@alice");
+    expect(colorized).toContain("@bob_123");
+    expect(colorized).toContain(theme.reset);
+    expect(colorized).toContain("x@y.com");
+  });
+
   test("HTML entities from Twitter text are decoded", () => {
     expect(decodeHtmlEntities("&gt; GPT &amp; friends &lt;3 &quot;ok&quot; &#39;yep&#39;")).toBe("> GPT & friends <3 \"ok\" 'yep'");
     expect(displayTweetText({ id: "5", name: "B", handle: "b", text: "&gt; GPT-5.1-Codex-Max", created_at: "", url: "" })).toBe("> GPT-5.1-Codex-Max");

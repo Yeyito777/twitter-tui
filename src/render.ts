@@ -64,6 +64,12 @@ function wrapPlain(text: string, width: number): string[] {
   return out;
 }
 
+export function colorizeHandles(text: string, baseColor = theme.text): string {
+  return text.replace(/(^|[^\w])@([A-Za-z0-9_]{1,20})\b/g, (_match, prefix: string, handle: string) => {
+    return `${prefix}${authorColor(handle)}@${handle}${theme.reset}${baseColor}`;
+  });
+}
+
 function line(text: string, width: number, bg = ""): string {
   const padded = padVisibleRightToWidth(text, width);
   return bg ? applyLineBg(padded, bg) : padded;
@@ -132,13 +138,13 @@ export function renderTweetCard(tweet: TweetItem, width: number, selected: boole
   const meta = `${theme.dim}${age(subject.created_at)}${reply}${theme.reset}`;
   out.push(line(` ${rtPrefix}${name} ${meta}`, width, bg));
   for (const textLine of wrapPlain(displayTweetText(subject), inner)) {
-    out.push(line(` ${theme.text}${textLine}${theme.reset}`, width, bg));
+    out.push(line(` ${theme.text}${colorizeHandles(textLine, theme.text)}${theme.reset}`, width, bg));
   }
   if (subject.quoted) {
     const quoted = subject.quoted;
     out.push(line(` ${theme.dim}▎ quote @${quoted.handle}${theme.reset}`, width, bg));
     for (const qline of wrapPlain(displayTweetText(quoted), Math.max(4, inner - 4)).slice(0, 4)) {
-      out.push(line(` ${theme.dim}▎ ${truncateToWidth(qline, inner - 2)}${theme.reset}`, width, bg));
+      out.push(line(` ${theme.dim}▎ ${colorizeHandles(truncateToWidth(qline, inner - 2), theme.dim)}${theme.reset}`, width, bg));
     }
     out.push(line(` ${theme.dim}▎ ♥ ${compact(quoted.likes)}  ↻ ${compact(quoted.retweets)}${theme.reset}`, width, bg));
   }
