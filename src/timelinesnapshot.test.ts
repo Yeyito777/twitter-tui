@@ -28,6 +28,7 @@ describe("timeline snapshot shape", () => {
       timelineCursorRow: state.timelineCursorRow,
       timelineCursorCol: state.timelineCursorCol,
       timelineCurswant: state.timelineCurswant,
+      timelineVisualAnchor: { ...state.timelineVisualAnchor },
       timelineLineItemIndexes: [...state.timelineLineItemIndexes],
       timelineLinePlain: [...state.timelineLinePlain],
       lastArgs: [...state.lastArgs],

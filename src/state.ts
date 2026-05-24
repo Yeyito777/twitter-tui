@@ -20,6 +20,7 @@ export interface TimelineSnapshot {
   timelineCursorRow: number;
   timelineCursorCol: number;
   timelineCurswant: number | null;
+  timelineVisualAnchor: { row: number; col: number };
   timelineLineItemIndexes: number[];
   timelineLinePlain: string[];
   lastArgs: string[];
@@ -74,6 +75,7 @@ export interface AppState {
   timelineCursorCol: number;
   /** Preferred timeline column for repeated j/k movement (Vim curswant). */
   timelineCurswant: number | null;
+  timelineVisualAnchor: { row: number; col: number };
   timelineLineItemIndexes: number[];
   timelineLinePlain: string[];
   editor: EditorState;
@@ -115,6 +117,7 @@ export function createInitialState(): AppState {
     timelineCursorRow: 0,
     timelineCursorCol: 1,
     timelineCurswant: null,
+    timelineVisualAnchor: { row: 0, col: 1 },
     timelineLineItemIndexes: [],
     timelineLinePlain: [],
     editor: createEditorState("", "insert"),
@@ -156,6 +159,7 @@ export function toggleContentFocus(state: AppState): void {
 export function focusPrompt(state: AppState): void {
   state.panelFocus = "content";
   state.contentFocus = "prompt";
+  if (state.editor.mode === "visual" || state.editor.mode === "visual-line") state.editor.mode = "normal";
   enterInsertMode(state.editor, displayCursor(state.editor));
 }
 

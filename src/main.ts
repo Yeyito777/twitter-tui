@@ -8,6 +8,7 @@ import { render } from "./render";
 import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS, type TimelineSnapshot } from "./state";
 import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadOlderTimeline, startLoadingOlderTimeline } from "./timelineloading";
 import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor, setTimelineCursorToRow } from "./timelinecursor";
+import { handleTimelineVisualKey } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
 import { setTheme, THEME_NAMES, type ThemeName } from "./theme";
 import { disableBracketedPaste, disableKittyKeyboard, enterAlt, enableBracketedPaste, enableKittyKeyboard, leaveAlt, resetCursorColor, setCursorColor } from "./terminal";
@@ -387,6 +388,7 @@ function currentTimelineSnapshot(): TimelineSnapshot {
     timelineCursorRow: state.timelineCursorRow,
     timelineCursorCol: state.timelineCursorCol,
     timelineCurswant: state.timelineCurswant,
+    timelineVisualAnchor: { ...state.timelineVisualAnchor },
     timelineLineItemIndexes: [...state.timelineLineItemIndexes],
     timelineLinePlain: [...state.timelineLinePlain],
     lastArgs: [...state.lastArgs],
@@ -410,6 +412,7 @@ function restoreTimelineSnapshot(snapshot: TimelineSnapshot): void {
   state.timelineCursorRow = snapshot.timelineCursorRow;
   state.timelineCursorCol = snapshot.timelineCursorCol;
   state.timelineCurswant = snapshot.timelineCurswant;
+  state.timelineVisualAnchor = { ...snapshot.timelineVisualAnchor };
   state.timelineLineItemIndexes = [...snapshot.timelineLineItemIndexes];
   state.timelineLinePlain = [...snapshot.timelineLinePlain];
   state.lastArgs = [...snapshot.lastArgs];
@@ -587,6 +590,10 @@ async function handleKey(key: KeyEvent): Promise<void> {
     }
     await handlePromptKey(key);
     return;
+  }
+
+  if (timelineFocused() && (state.editor.mode === "visual" || state.editor.mode === "visual-line" || key.type === "escape" || (key.type === "char" && ["v", "V", "y", "w", "b", "e", "f", "F", ";", ","].includes(key.char ?? "")))) {
+    if (handleTimelineVisualKey(state, key, afterTimelineCursorMove)) return;
   }
 
   if (key.type === "escape") { focusPrompt(state); return; }

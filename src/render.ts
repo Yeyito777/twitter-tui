@@ -1,8 +1,10 @@
 import { displayCursor, getInputLines, MAX_PROMPT_ROWS, PROMPT_PREFIX_WIDTH } from "./editor";
+import { renderLineWithCursor } from "./historyrender";
 import { LOADING_FRAMES, loadingLabel } from "./loading";
 import { focusLabel, VIEWS, type AppState } from "./state";
 import { renderStatusLine } from "./statusline";
 import { syncTimelineCursorToSelection, stripTimelineAnsi } from "./timelinecursor";
+import { applyTimelineVisualSelection } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type TimelineItem, type TweetItem } from "./types";
 import { authorColor, theme } from "./theme";
 import { applyLineBg, clearLine, cursorBar, cursorBlock, cursorUnderline, hideCursor, moveTo, showCursor } from "./terminal";
@@ -290,7 +292,10 @@ export function render(state: AppState): void {
   state.scroll = Math.max(0, Math.min(state.scroll, Math.max(0, flat.length - bodyHeight)));
 
   for (let r = 0; r < bodyHeight; r++) {
-    const content = flat[state.scroll + r] ?? "";
+    const rowIndex = state.scroll + r;
+    let content = flat[rowIndex] ?? "";
+    content = applyTimelineVisualSelection(state, content, rowIndex);
+    if (timelineFocused && rowIndex === state.timelineCursorRow) content = renderLineWithCursor(content, state.timelineCursorCol);
     out.push(moveTo(bodyTop + r, mainCol) + line(content, mainW, bg));
   }
   out.push(moveTo(promptSeparatorRow, mainCol) + `${promptFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`);
@@ -320,8 +325,7 @@ export function render(state: AppState): void {
       const historyCursorRow = bodyTop + visibleRow;
       const historyCursorCol = Math.min(cols, mainCol + 1 + Math.max(0, state.timelineCursorCol));
       out.push(moveTo(historyCursorRow, historyCursorCol));
-      out.push(state.editor.mode === "visual" || state.editor.mode === "visual-line" ? cursorUnderline : cursorBlock);
-      out.push(showCursor);
+      out.push(hideCursor);
     } else {
       out.push(hideCursor);
     }

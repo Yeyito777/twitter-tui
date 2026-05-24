@@ -29,6 +29,7 @@ export function setTimelineFeed(state: AppState, feed: FeedResult, args: string[
   state.timelineCursorRow = 0;
   state.timelineCursorCol = 1;
   state.timelineCurswant = null;
+  state.timelineVisualAnchor = { row: 0, col: 1 };
   state.lastArgs = [...args];
   state.currentDmConversationId = feed.conversation_id ?? (feed.kind === "dm" ? state.currentDmConversationId : null);
 }
