@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { render } from "./render";
+import { displayTweetText, render } from "./render";
 
 describe("timeline loading render", () => {
   test("thread loads show replies loader below cached main tweet", () => {
@@ -26,5 +26,25 @@ describe("timeline loading render", () => {
     expect(output).toContain("Loading replies");
     expect(output).not.toContain("Loading timeline");
     expect(output.indexOf("Loading replies")).toBeGreaterThan(output.indexOf("main tweet"));
+  });
+});
+
+describe("tweet text display", () => {
+  test("reply tweets hide the leading replied-to mention", () => {
+    expect(displayTweetText({
+      id: "2",
+      name: "B",
+      handle: "b",
+      text: "@alice yep exactly",
+      created_at: "2026-05-24 00:00",
+      url: "https://x.com/b/status/2",
+      is_reply: true,
+      in_reply_to: "alice",
+    })).toBe("yep exactly");
+  });
+
+  test("non-leading mentions and non-replies are preserved", () => {
+    expect(displayTweetText({ id: "3", name: "B", handle: "b", text: "hey @alice", created_at: "", url: "" })).toBe("hey @alice");
+    expect(displayTweetText({ id: "4", name: "B", handle: "b", text: "cc @alice hey", created_at: "", url: "", is_reply: true, in_reply_to: "alice" })).toBe("cc @alice hey");
   });
 });

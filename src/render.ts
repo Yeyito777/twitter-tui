@@ -74,6 +74,13 @@ function tweetSubject(tweet: TweetItem): TweetItem {
   return tweet.is_retweet && tweet.retweeted ? tweet.retweeted : tweet;
 }
 
+export function displayTweetText(tweet: TweetItem): string {
+  const text = tweet.text || "";
+  if (!tweet.is_reply || !tweet.in_reply_to) return text;
+  const escaped = tweet.in_reply_to.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`^@${escaped}\\s+`, "i"), "");
+}
+
 function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): string[] {
   const subject = tweetSubject(tweet);
   const bg = selected ? theme.historyLineBg : "";
@@ -85,7 +92,7 @@ function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): st
   const name = `${color}${subject.name}${theme.reset} ${theme.muted}@${subject.handle}${theme.reset}`;
   const meta = `${theme.dim}${age(subject.created_at)}${reply}${theme.reset}`;
   out.push(line(` ${rtPrefix}${name} ${meta}`, width, bg));
-  for (const textLine of wrapPlain(subject.text || "", inner)) {
+  for (const textLine of wrapPlain(displayTweetText(subject), inner)) {
     out.push(line(` ${theme.text}${textLine}${theme.reset}`, width, bg));
   }
   if (subject.quoted) {
