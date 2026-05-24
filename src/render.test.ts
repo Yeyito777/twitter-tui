@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { displayTweetText, render, renderTweetCard } from "./render";
+import { decodeHtmlEntities, displayTweetText, render, renderTweetCard } from "./render";
 import { theme } from "./theme";
 
 describe("timeline loading render", () => {
@@ -93,6 +93,11 @@ describe("timeline visual render", () => {
 });
 
 describe("tweet text display", () => {
+  test("HTML entities from Twitter text are decoded", () => {
+    expect(decodeHtmlEntities("&gt; GPT &amp; friends &lt;3 &quot;ok&quot; &#39;yep&#39;")).toBe("> GPT & friends <3 \"ok\" 'yep'");
+    expect(displayTweetText({ id: "5", name: "B", handle: "b", text: "&gt; GPT-5.1-Codex-Max", created_at: "", url: "" })).toBe("> GPT-5.1-Codex-Max");
+  });
+
   test("reply tweets hide the leading replied-to mention", () => {
     expect(displayTweetText({
       id: "2",
@@ -125,7 +130,7 @@ describe("quoted tweet render", () => {
         id: "2",
         name: "B",
         handle: "b",
-        text: "quoted line one\nquoted line two",
+        text: "&gt; quoted line one\nquoted line two",
         created_at: "",
         url: "",
         likes: 1,
@@ -134,7 +139,7 @@ describe("quoted tweet render", () => {
     }, 80, false).join("\n");
 
     expect(rows).toContain("▎ quote @b");
-    expect(rows).toContain("▎ quoted line one");
+    expect(rows).toContain("▎ > quoted line one");
     expect(rows).toContain("▎ quoted line two");
     expect(rows).toContain("▎ ♥ 1  ↻ 2");
   });

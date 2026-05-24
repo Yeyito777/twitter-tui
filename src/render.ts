@@ -97,10 +97,27 @@ function tweetSubject(tweet: TweetItem): TweetItem {
 }
 
 export function displayTweetText(tweet: TweetItem): string {
-  const text = tweet.text || "";
+  const text = decodeHtmlEntities(tweet.text || "");
   if (!tweet.is_reply || !tweet.in_reply_to) return text;
   const escaped = tweet.in_reply_to.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return text.replace(new RegExp(`^@${escaped}\\s+`, "i"), "");
+}
+
+export function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "<")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, code: string) => {
+      const value = Number(code);
+      return Number.isFinite(value) ? String.fromCodePoint(value) : _;
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code: string) => {
+      const value = Number.parseInt(code, 16);
+      return Number.isFinite(value) ? String.fromCodePoint(value) : _;
+    });
 }
 
 export function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): string[] {
@@ -120,7 +137,7 @@ export function renderTweetCard(tweet: TweetItem, width: number, selected: boole
   if (subject.quoted) {
     const quoted = subject.quoted;
     out.push(line(` ${theme.dim}▎ quote @${quoted.handle}${theme.reset}`, width, bg));
-    for (const qline of wrapPlain(quoted.text || "", Math.max(4, inner - 4)).slice(0, 4)) {
+    for (const qline of wrapPlain(displayTweetText(quoted), Math.max(4, inner - 4)).slice(0, 4)) {
       out.push(line(` ${theme.dim}▎ ${truncateToWidth(qline, inner - 2)}${theme.reset}`, width, bg));
     }
     out.push(line(` ${theme.dim}▎ ♥ ${compact(quoted.likes)}  ↻ ${compact(quoted.retweets)}${theme.reset}`, width, bg));
