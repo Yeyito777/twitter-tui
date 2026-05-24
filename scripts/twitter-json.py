@@ -131,6 +131,8 @@ def thread(args):
         "withVoice": True,
         "withV2Timeline": True,
     }
+    if args.cursor:
+        variables["cursor"] = args.cursor
     data = graphql_get(Q["TweetDetail"], "TweetDetail", variables)
     instructions = data.get("data", {}).get("threaded_conversation_with_injections_v2", {}).get("instructions", [])
     entries = []
@@ -292,7 +294,7 @@ def main():
     se = sub.add_parser("search"); se.add_argument("query", nargs="+"); se.add_argument("-n", "--count", type=int, default=30); se.add_argument("-c", "--cursor"); se.add_argument("-l", "--latest", action="store_true"); se.set_defaults(fn=search)
     tws = sub.add_parser("tweets"); tws.add_argument("user"); tws.add_argument("-n", "--count", type=int, default=30); tws.add_argument("-c", "--cursor"); tws.add_argument("--replies", action="store_true"); tws.set_defaults(fn=user_tweets)
     t = sub.add_parser("tweet"); t.add_argument("tweet"); t.set_defaults(fn=single_tweet)
-    th = sub.add_parser("thread"); th.add_argument("tweet"); th.set_defaults(fn=thread)
+    th = sub.add_parser("thread"); th.add_argument("tweet"); th.add_argument("-c", "--cursor"); th.set_defaults(fn=thread)
     no = sub.add_parser("notifications"); no.add_argument("-n", "--count", type=int, default=30); no.add_argument("-c", "--cursor"); no.set_defaults(fn=notifications)
     bm = sub.add_parser("bookmarks"); bm.add_argument("-n", "--count", type=int, default=30); bm.add_argument("-c", "--cursor"); bm.set_defaults(fn=bookmarks)
     tr = sub.add_parser("trending"); tr.add_argument("-n", "--count", type=int, default=30); tr.set_defaults(fn=trending)
