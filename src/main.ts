@@ -2,6 +2,7 @@
 /** twitter-tui — record-style Twitter/X terminal client. */
 
 import { feedArgsForView, loadAccount, loadFeed, twitterCli } from "./backend";
+import { cachedFeedForArgs, cachedFeedForArgsAnyAccount, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
 import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
 import { render } from "./render";
@@ -94,6 +95,39 @@ function applyFeed(feed: FeedResult, args: string[]): void {
   }
 }
 
+function cacheAccountId(): string {
+  return state.account?.id || "default";
+}
+
+function cachedFeedForCurrentAccount(args: string[]): FeedResult | null {
+  const accountId = cacheAccountId();
+  const cached = cachedFeedForArgs(accountId, args)
+    ?? (accountId !== "default" ? cachedFeedForArgs("default", args) : null)
+    ?? cachedFeedForArgsAnyAccount(args);
+  return cached?.feed ?? null;
+}
+
+function isCacheableArgs(args: string[]): boolean {
+  return sidebarSurfaceKeyFromArgs(args) !== null || threadIdFromArgs(args) !== null;
+}
+
+function persistFeedForArgs(args: string[], feed: FeedResult): void {
+  if (!isCacheableArgs(args)) return;
+  saveFeedForArgs(cacheAccountId(), args, feed);
+}
+
+function currentFeedResult(): FeedResult {
+  return {
+    ok: true,
+    kind: state.feedKind,
+    title: state.title,
+    items: state.items,
+    cursors: { ...state.cursors },
+    profile: state.profile ?? undefined,
+    conversation_id: state.currentDmConversationId ?? undefined,
+  };
+}
+
 function loadingLabelFor(title: string, args: string[]): string {
   if (args[0] === "timeline" && args.includes("--latest")) return "Loading Latest…";
   if (args[0] === "timeline") return "Loading Timeline…";
@@ -112,15 +146,23 @@ function shouldClearBeforeLoad(args: string[]): boolean {
 }
 
 async function load(args: string[], title = "Loading"): Promise<void> {
-  const seq = beginTimelineLoad(state, loadingLabelFor(title, args), shouldClearBeforeLoad(args));
+  const cachedFeed = cachedFeedForCurrentAccount(args);
+  const label = loadingLabelFor(title, args);
+  const seq = beginTimelineLoad(state, label, shouldClearBeforeLoad(args) && !cachedFeed);
   requestSeq = seq;
   setNotice(state, "", "muted", false);
+  if (cachedFeed) {
+    applyFeed(cachedFeed, args);
+    state.timelineLoading = true;
+    state.timelineLoadingLabel = label;
+  }
   syncLoading();
   scheduleRender();
   try {
     const feed = await loadFeed(args);
     if (seq !== requestSeq) return;
     applyFeed(feed, args);
+    persistFeedForArgs(args, feed);
     setNotice(state, "", "success");
   } catch (error) {
     if (seq !== requestSeq) return;
@@ -143,6 +185,7 @@ async function maybeLoadOlderTimeline(): Promise<void> {
   try {
     const feed = await loadFeed(cursorArgs(state.lastArgs, state.cursors.bottom));
     finishLoadingOlderTimeline(state, feed);
+    persistFeedForArgs(state.lastArgs, currentFeedResult());
   } catch (error) {
     finishLoadingOlderTimeline(state, null);
     setNotice(state, error instanceof Error ? error.message : String(error), "error");
@@ -163,6 +206,7 @@ async function hydrateAccount(): Promise<void> {
   try {
     state.account = await loadAccount();
     state.accountStatus = "authenticated";
+    if (state.items.length > 0) persistFeedForArgs(state.lastArgs, currentFeedResult());
     scheduleRender();
   } catch {
     state.accountStatus = "error";
@@ -680,6 +724,7 @@ function shutdown(): void {
   shuttingDown = true;
   if (loadingTimer) clearInterval(loadingTimer);
   if (renderTimer) clearTimeout(renderTimer);
+  flushTwitterCacheSync();
   try { process.stdin.setRawMode(false); } catch {}
   process.stdin.pause();
   process.stdout.write(disableBracketedPaste + disableKittyKeyboard + resetCursorColor + leaveAlt);
