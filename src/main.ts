@@ -6,6 +6,7 @@ import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
 import { render } from "./render";
 import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS } from "./state";
+import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingNewerTimeline, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadNewerTimeline, shouldLoadOlderTimeline, startLoadingNewerTimeline, startLoadingOlderTimeline } from "./timelineloading";
 import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, setTimelineCursorToRow } from "./timelinecursor";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
 import { setTheme, THEME_NAMES, type ThemeName } from "./theme";
@@ -38,6 +39,7 @@ function stripInitialLauncherEcho(input: string): string {
 }
 
 function scheduleRender(): void {
+  syncLoading();
   if (renderTimer) return;
   renderTimer = setTimeout(() => {
     renderTimer = null;
@@ -46,7 +48,8 @@ function scheduleRender(): void {
 }
 
 function syncLoading(): void {
-  if (!state.notice.loading) {
+  const active = state.notice.loading || state.timelineLoading || state.timelineLoadingOlder || state.timelineLoadingNewer || state.accountStatus === "loading";
+  if (!active) {
     if (loadingTimer) clearInterval(loadingTimer);
     loadingTimer = null;
     state.loadingFrameIndex = 0;
@@ -79,15 +82,7 @@ function selectedUrl(): string | null {
 }
 
 function applyFeed(feed: FeedResult, args: string[]): void {
-  state.title = feed.title || feed.kind;
-  state.feedKind = feed.kind;
-  state.items = feed.items ?? [];
-  state.profile = feed.profile ?? null;
-  state.cursors = feed.cursors ?? {};
-  state.selectedIndex = 0;
-  state.scroll = 0;
-  state.lastArgs = [...args];
-  state.currentDmConversationId = feed.conversation_id ?? (feed.kind === "dm" ? state.currentDmConversationId : null);
+  setTimelineFeed(state, feed, args);
   clampSelection(state);
   const matching = VIEWS.findIndex((view) => view.id === (feed.kind === "timeline" ? (args.includes("--latest") ? "latest" : "home") : feed.kind));
   if (matching >= 0) {
@@ -99,24 +94,60 @@ function applyFeed(feed: FeedResult, args: string[]): void {
 }
 
 async function load(args: string[], title = "Loading"): Promise<void> {
-  const seq = ++requestSeq;
-  setNotice(state, `${title}…`, "muted", true);
+  const seq = beginTimelineLoad(state);
+  requestSeq = seq;
+  setNotice(state, "", "muted", false);
   syncLoading();
   scheduleRender();
   try {
     const feed = await loadFeed(args);
     if (seq !== requestSeq) return;
     applyFeed(feed, args);
-    setNotice(state, `${feed.title}: ${feed.items.length} item${feed.items.length === 1 ? "" : "s"}`, "success");
+    setNotice(state, "", "success");
   } catch (error) {
     if (seq !== requestSeq) return;
+    failTimelineLoad(state);
     setNotice(state, error instanceof Error ? error.message : String(error), "error");
   } finally {
     if (seq === requestSeq) {
-      state.notice.loading = false;
+      state.timelineLoading = false;
       syncLoading();
       scheduleRender();
     }
+  }
+}
+
+async function maybeLoadOlderTimeline(): Promise<void> {
+  if (!shouldLoadOlderTimeline(state) || !state.cursors.bottom) return;
+  startLoadingOlderTimeline(state);
+  syncLoading();
+  scheduleRender();
+  try {
+    const feed = await loadFeed(cursorArgs(state.lastArgs, state.cursors.bottom));
+    finishLoadingOlderTimeline(state, feed);
+  } catch (error) {
+    finishLoadingOlderTimeline(state, null);
+    setNotice(state, error instanceof Error ? error.message : String(error), "error");
+  } finally {
+    syncLoading();
+    scheduleRender();
+  }
+}
+
+async function maybeLoadNewerTimeline(): Promise<void> {
+  if (!shouldLoadNewerTimeline(state) || !state.cursors.top) return;
+  startLoadingNewerTimeline(state);
+  syncLoading();
+  scheduleRender();
+  try {
+    const feed = await loadFeed(cursorArgs(state.lastArgs, state.cursors.top));
+    finishLoadingNewerTimeline(state, feed);
+  } catch (error) {
+    finishLoadingNewerTimeline(state, null);
+    setNotice(state, error instanceof Error ? error.message : String(error), "error");
+  } finally {
+    syncLoading();
+    scheduleRender();
   }
 }
 
@@ -358,6 +389,11 @@ function timelineFocused(): boolean {
   return state.panelFocus === "content" && state.contentFocus === "timeline";
 }
 
+function afterTimelineCursorMove(): void {
+  void maybeLoadOlderTimeline();
+  void maybeLoadNewerTimeline();
+}
+
 function commandHistory(delta: number): boolean {
   if (state.commandHistory.length === 0 || state.editor.buffer.length > 0 && state.commandHistoryIndex === null) return false;
   const start = state.commandHistoryIndex ?? state.commandHistory.length;
@@ -383,7 +419,18 @@ async function activateSelection(): Promise<void> {
     return;
   }
   const id = selectedTweetId();
-  if (id) await load(["thread", id], "Thread");
+  if (id) {
+    const tweet = selectedTweet();
+    state.title = `Thread ${id}`;
+    state.feedKind = "thread";
+    state.activeView = "thread";
+    state.items = tweet ? [tweet] : [];
+    state.profile = null;
+    state.selectedIndex = 0;
+    state.scroll = Number.MAX_SAFE_INTEGER;
+    focusTimeline(state);
+    await load(["thread", id], "Thread");
+  }
 }
 
 function prepareReply(): void {
@@ -479,8 +526,8 @@ async function handleKey(key: KeyEvent): Promise<void> {
 
   if (key.type === "escape") { focusPrompt(state); return; }
   if (key.type === "enter") { await activateSelection(); return; }
-  if (key.type === "up") { state.panelFocus === "sidebar" ? sidebarMove(-1) : timelineFocused() ? moveTimelineCursorRows(state, -1) : moveSelection(-1); return; }
-  if (key.type === "down") { state.panelFocus === "sidebar" ? sidebarMove(1) : timelineFocused() ? moveTimelineCursorRows(state, 1) : moveSelection(1); return; }
+  if (key.type === "up") { state.panelFocus === "sidebar" ? sidebarMove(-1) : timelineFocused() ? (moveTimelineCursorRows(state, -1), afterTimelineCursorMove()) : moveSelection(-1); return; }
+  if (key.type === "down") { state.panelFocus === "sidebar" ? sidebarMove(1) : timelineFocused() ? (moveTimelineCursorRows(state, 1), afterTimelineCursorMove()) : moveSelection(1); return; }
   if (key.type === "left") { if (timelineFocused()) moveTimelineCursorCols(state, -1); return; }
   if (key.type === "right") { if (timelineFocused()) moveTimelineCursorCols(state, 1); return; }
   if (key.type !== "char" || !key.char) return;
@@ -491,8 +538,8 @@ async function handleKey(key: KeyEvent): Promise<void> {
     case "/": setPrompt("/"); return;
     case "s": focusSidebar(state); return;
     case "t": focusTimeline(state); return;
-    case "j": state.panelFocus === "sidebar" ? sidebarMove(1) : timelineFocused() ? moveTimelineCursorRows(state, 1) : moveSelection(1); return;
-    case "k": state.panelFocus === "sidebar" ? sidebarMove(-1) : timelineFocused() ? moveTimelineCursorRows(state, -1) : moveSelection(-1); return;
+    case "j": state.panelFocus === "sidebar" ? sidebarMove(1) : timelineFocused() ? (moveTimelineCursorRows(state, 1), afterTimelineCursorMove()) : moveSelection(1); return;
+    case "k": state.panelFocus === "sidebar" ? sidebarMove(-1) : timelineFocused() ? (moveTimelineCursorRows(state, -1), afterTimelineCursorMove()) : moveSelection(-1); return;
     case "h": if (timelineFocused()) moveTimelineCursorCols(state, -1); return;
     case "l": if (timelineFocused()) { moveTimelineCursorCols(state, 1); return; }
       {
@@ -503,8 +550,8 @@ async function handleKey(key: KeyEvent): Promise<void> {
       }
     case "0": if (timelineFocused()) moveTimelineCursorLineStart(state); return;
     case "$": if (timelineFocused()) moveTimelineCursorLineEnd(state); return;
-    case "g": state.panelFocus === "sidebar" ? state.sidebarIndex = 0 : timelineFocused() ? setTimelineCursorToRow(state, 0) : (state.selectedIndex = 0, state.scroll = 0); return;
-    case "G": state.panelFocus === "sidebar" ? state.sidebarIndex = VIEWS.length - 1 : timelineFocused() ? setTimelineCursorToRow(state, Math.max(0, state.timelineLinePlain.length - 1)) : (state.selectedIndex = Math.max(0, state.items.length - 1)); return;
+    case "g": state.panelFocus === "sidebar" ? state.sidebarIndex = 0 : timelineFocused() ? (setTimelineCursorToRow(state, 0), afterTimelineCursorMove()) : (state.selectedIndex = 0, state.scroll = 0); return;
+    case "G": state.panelFocus === "sidebar" ? state.sidebarIndex = VIEWS.length - 1 : timelineFocused() ? (setTimelineCursorToRow(state, Math.max(0, state.timelineLinePlain.length - 1)), afterTimelineCursorMove()) : (state.selectedIndex = Math.max(0, state.items.length - 1)); return;
     case "r": prepareReply(); return;
     case "Q": prepareQuote(); return;
     case "b": {

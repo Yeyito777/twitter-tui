@@ -1,5 +1,5 @@
 import { displayCursor, getInputLines, MAX_PROMPT_ROWS, PROMPT_PREFIX_WIDTH } from "./editor";
-import { LOADING_FRAMES } from "./loading";
+import { LOADING_FRAMES, loadingLabel } from "./loading";
 import { focusLabel, VIEWS, type AppState } from "./state";
 import { renderStatusLine } from "./statusline";
 import { syncTimelineCursorToSelection, stripTimelineAnsi } from "./timelinecursor";
@@ -233,7 +233,11 @@ export function render(state: AppState): void {
   const cards: string[][] = [];
   if (state.profile) cards.push(renderProfile(state, mainW));
   for (let i = 0; i < state.items.length; i++) cards.push(renderItemCard(state.items[i], mainW, i === state.selectedIndex && timelineFocused));
-  if (cards.length === 0) {
+  if (state.timelineLoading && cards.length === 0) {
+    cards.push([
+      line(`${theme.muted}${truncateToWidth(loadingLabel("Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, mainW),
+    ]);
+  } else if (cards.length === 0) {
     cards.push([
       line(`${theme.dim}No items yet.${theme.reset}`, mainW),
       line(`${theme.dim}${state.notice.loading ? "Fetching timeline…" : "Ready."}${theme.reset}`, mainW),
@@ -242,6 +246,14 @@ export function render(state: AppState): void {
   const flat: string[] = [];
   const starts: number[] = [];
   const lineItemIndexes: number[] = [];
+  if (state.timelineLoading && state.items.length > 0) {
+    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading timeline…", state.loadingFrameIndex), mainW)}${theme.reset}`, "");
+    lineItemIndexes.push(-1, -1);
+  }
+  if (state.timelineLoadingNewer) {
+    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading newer tweets…", state.loadingFrameIndex), mainW)}${theme.reset}`, "");
+    lineItemIndexes.push(-1, -1);
+  }
   for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {
     const card = cards[cardIndex];
     starts.push(flat.length);
@@ -252,6 +264,10 @@ export function render(state: AppState): void {
     }
     flat.push("");
     lineItemIndexes.push(itemIndex);
+  }
+  if (state.timelineLoadingOlder) {
+    flat.push(`${theme.muted}${truncateToWidth(loadingLabel("Loading older tweets…", state.loadingFrameIndex), mainW)}${theme.reset}`);
+    lineItemIndexes.push(-1);
   }
   const selectedCardIndex = state.profile ? state.selectedIndex + 1 : state.selectedIndex;
   const selectedStart = starts[selectedCardIndex] ?? 0;

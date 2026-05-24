@@ -43,6 +43,12 @@ export interface AppState {
   accountStatus: AccountStatus;
   account: Account | null;
   cursors: { top?: string; bottom?: string };
+  timelineLoading: boolean;
+  timelineLoadingOlder: boolean;
+  timelineLoadingNewer: boolean;
+  timelineHasOlder: boolean;
+  timelineHasNewer: boolean;
+  timelineRequestId: number;
   selectedIndex: number;
   scroll: number;
   timelineCursorRow: number;
@@ -78,6 +84,12 @@ export function createInitialState(): AppState {
     accountStatus: "loading",
     account: null,
     cursors: {},
+    timelineLoading: false,
+    timelineLoadingOlder: false,
+    timelineLoadingNewer: false,
+    timelineHasOlder: false,
+    timelineHasNewer: false,
+    timelineRequestId: 0,
     selectedIndex: 0,
     scroll: 0,
     timelineCursorRow: 0,
