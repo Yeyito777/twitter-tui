@@ -5,10 +5,12 @@ import { feedArgsForView, loadAccount, loadFeed, twitterCli } from "./backend";
 import { cachedFeedForArgs, cachedFeedForArgsAnyAccount, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
 import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
+import { openTargetDetached } from "./openable";
 import { render } from "./render";
 import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS, type TimelineSnapshot } from "./state";
 import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadOlderTimeline, startLoadingOlderTimeline } from "./timelineloading";
 import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor, setTimelineCursorToRow } from "./timelinecursor";
+import { openableTargetAtTimelineCursor } from "./timelineopenable";
 import { handleTimelineVisualKey } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
 import { setTheme, THEME_NAMES, type ThemeName } from "./theme";
@@ -234,16 +236,9 @@ async function action(label: string, args: string[], after?: () => Promise<void>
 }
 
 function openUrl(url: string): void {
-  const candidates = [
-    ["qutebrowser-cli", "open", url],
-    ["xdg-open", url],
-  ];
-  for (const command of candidates) {
-    try {
-      Bun.spawn(command, { stdout: "ignore", stderr: "ignore" });
-      setNotice(state, `Opened ${url}`, "success");
-      return;
-    } catch {}
+  if (openTargetDetached(url)) {
+    setNotice(state, `Opened ${url}`, "success");
+    return;
   }
   setNotice(state, `No opener found for ${url}`, "warning");
 }
@@ -534,6 +529,15 @@ async function activateSelection(): Promise<void> {
   }
   if (isTrend(item)) {
     await load(["search", "-n", "35", item.name], `Search ${item.name}`);
+    return;
+  }
+  const openable = openableTargetAtTimelineCursor(state);
+  if (openable) {
+    if (openTargetDetached(openable)) {
+      setNotice(state, `Opened ${openable}`, "success");
+      return;
+    }
+    setNotice(state, `No opener found for ${openable}`, "warning");
     return;
   }
   const id = selectedTweetId();
