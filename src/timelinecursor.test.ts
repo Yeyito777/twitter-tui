@@ -3,6 +3,22 @@ import { createInitialState } from "./state";
 import { moveTimelineCursorCols, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor } from "./timelinecursor";
 
 describe("timeline curswant", () => {
+  test("blank tweet lines render cursor at the left content cell", () => {
+    const state = createInitialState();
+    state.timelineLinePlain = [" first", "", "   ", " last"];
+    state.timelineLineItemIndexes = [0, 0, 0, 0];
+    state.timelineCursorRow = 0;
+    state.timelineCursorCol = 20;
+
+    moveTimelineCursorRows(state, 1);
+    expect(state.timelineCursorRow).toBe(1);
+    expect(state.timelineCursorCol).toBe(1);
+
+    moveTimelineCursorRows(state, 1);
+    expect(state.timelineCursorRow).toBe(2);
+    expect(state.timelineCursorCol).toBe(1);
+  });
+
   test("j/k preserve preferred column across short timeline lines", () => {
     const state = createInitialState();
     state.timelineLinePlain = [" abcdef", " x", " 123456789"];

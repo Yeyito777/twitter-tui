@@ -20,6 +20,9 @@ export function stripTimelineAnsi(text: string): string {
 }
 
 export function timelineContentBounds(plain: string): { start: number; end: number } {
+  if (plain.trim().length === 0) {
+    return { start: 1, end: 1 };
+  }
   let start = 0;
   while (start < plain.length && plain[start] === " ") start++;
   let end = plain.length - 1;
@@ -33,7 +36,6 @@ export function timelineContentBounds(plain: string): { start: number; end: numb
 
 export function clampTimelineCol(col: number, lines: string[], row: number): number {
   const plain = lines[row] ?? "";
-  if (plain.length === 0) return 0;
   const { start, end } = timelineContentBounds(plain);
   return Math.max(start, Math.min(col, end));
 }
