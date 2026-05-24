@@ -100,7 +100,7 @@ function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): st
     const label = `${theme.tool}📎 ${media.type}${theme.reset} ${theme.dim}${media.url || media.expanded_url || "media"}${theme.reset}`;
     out.push(line(` ${truncateToWidth(label, inner)}`, width, bg));
   }
-  const stats = `${theme.muted}♥${theme.reset} ${compact(subject.likes)}  ${theme.muted}↻${theme.reset} ${compact(subject.retweets)}  ${theme.muted}💬${theme.reset} ${compact(subject.replies)}  ${theme.muted}👁${theme.reset} ${compact(subject.views)}  ${theme.dim}${subject.id}${theme.reset}`;
+  const stats = `${theme.muted}♥${theme.reset} ${compact(subject.likes)}  ${theme.muted}↻${theme.reset} ${compact(subject.retweets)}  ${theme.muted}💬${theme.reset} ${compact(subject.replies)}  ${theme.muted}👁${theme.reset} ${compact(subject.views)}`;
   out.push(line(` ${stats}`, width, bg));
   return out;
 }
