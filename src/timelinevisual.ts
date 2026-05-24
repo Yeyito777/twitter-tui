@@ -59,9 +59,9 @@ export function lineSelectionRangeForRow(state: AppState, row: number): { start:
   if (!isVisualMode(state)) return null;
   const { start, end } = normalizeSelection(state.timelineVisualAnchor, { row: state.timelineCursorRow, col: state.timelineCursorCol });
   if (row < start.row || row > end.row) return null;
-  if (state.editor.mode === "visual-line") return { start: -1, end: Number.MAX_SAFE_INTEGER };
   const plain = state.timelineLinePlain[row] ?? "";
   const bounds = timelineContentBounds(plain);
+  if (state.editor.mode === "visual-line") return bounds;
   return {
     start: row === start.row ? start.col : bounds.start,
     end: row === end.row ? end.col : bounds.end,
@@ -71,7 +71,6 @@ export function lineSelectionRangeForRow(state: AppState, row: number): { start:
 export function applyTimelineVisualSelection(state: AppState, line: string, row: number): string {
   const range = lineSelectionRangeForRow(state, row);
   if (!range) return line;
-  if (range.start === -1) return renderLineWithSelection(line, -1, Number.MAX_SAFE_INTEGER);
   return renderLineWithSelection(line, range.start, range.end);
 }
 

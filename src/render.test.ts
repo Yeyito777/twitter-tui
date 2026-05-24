@@ -63,6 +63,35 @@ describe("prompt visual render", () => {
   });
 });
 
+describe("timeline visual render", () => {
+  test("visual-line selection highlights rendered lines without selected tweet card background", () => {
+    const state = createInitialState();
+    state.cols = 100;
+    state.rows = 24;
+    state.panelFocus = "content";
+    state.contentFocus = "timeline";
+    state.editor.mode = "visual-line";
+    state.timelineVisualAnchor = { row: 0, col: 1 };
+    state.timelineCursorRow = 1;
+    state.timelineCursorCol = 1;
+    state.items = [{ id: "1", name: "A", handle: "a", text: "first\nsecond", created_at: "", url: "" }];
+    state.timelineLineItemIndexes = [0, 0];
+    state.timelineLinePlain = [" A @a", " first"];
+
+    let output = "";
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (chunk: string | Uint8Array) => { output += String(chunk); return true; };
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(output).toContain(theme.selectionBg);
+    expect(output).not.toContain(theme.historyLineBg);
+  });
+});
+
 describe("tweet text display", () => {
   test("reply tweets hide the leading replied-to mention", () => {
     expect(displayTweetText({

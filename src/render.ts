@@ -258,10 +258,11 @@ export function render(state: AppState): void {
   const mainCol = sidebarW + 1;
   out.push(moveTo(1, mainCol) + renderTopbar(state, mainW));
   out.push(moveTo(2, mainCol) + `${timelineFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`);
+  const timelineInVisual = timelineFocused && (state.editor.mode === "visual" || state.editor.mode === "visual-line");
 
   const cards: string[][] = [];
   if (state.profile) cards.push(renderProfile(state, mainW));
-  for (let i = 0; i < state.items.length; i++) cards.push(renderItemCard(state.items[i], mainW, i === state.selectedIndex && timelineFocused));
+  for (let i = 0; i < state.items.length; i++) cards.push(renderItemCard(state.items[i], mainW, i === state.selectedIndex && timelineFocused && !timelineInVisual));
   const threadLoading = state.timelineLoading && state.feedKind === "thread";
   if (state.timelineLoading && cards.length === 0) {
     cards.push([

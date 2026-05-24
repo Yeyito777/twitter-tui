@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { getTimelineVisualSelection, handleTimelineVisualKey } from "./timelinevisual";
+import { getTimelineVisualSelection, handleTimelineVisualKey, lineSelectionRangeForRow } from "./timelinevisual";
 import { theme } from "./theme";
 import { renderLineWithSelection } from "./historyrender";
 
@@ -44,6 +44,19 @@ describe("timeline visual mode", () => {
     handleTimelineVisualKey(state, { type: "char", char: "j" });
     expect(state.editor.mode).toBe("visual-line");
     expect(getTimelineVisualSelection(state)).toBe(" first\n second");
+  });
+
+  test("visual-line selection is bounded to rendered line content, not the whole padded tweet row", () => {
+    const state = createInitialState();
+    state.editor.mode = "visual-line";
+    state.timelineLinePlain = [" first      ", " second     "];
+    state.timelineLineItemIndexes = [0, 0];
+    state.timelineVisualAnchor = { row: 0, col: 1 };
+    state.timelineCursorRow = 1;
+    state.timelineCursorCol = 1;
+
+    expect(lineSelectionRangeForRow(state, 0)).toEqual({ start: 1, end: 5 });
+    expect(lineSelectionRangeForRow(state, 1)).toEqual({ start: 1, end: 6 });
   });
 
   test("visual mode owns movement keys while active", () => {
