@@ -78,31 +78,30 @@ function renderTweetCard(tweet: TweetItem, width: number, selected: boolean): st
   const subject = tweetSubject(tweet);
   const bg = selected ? theme.historyLineBg : "";
   const color = authorColor(subject.handle || subject.id);
-  const border = selected ? theme.accent : theme.borderUnfocused;
-  const inner = Math.max(8, width - 4);
+  const inner = Math.max(8, width - 2);
   const out: string[] = [];
   const rtPrefix = tweet.is_retweet && tweet.retweeted ? `${theme.dim}🔁 @${tweet.handle} reposted${theme.reset} ` : "";
   const reply = subject.is_reply && subject.in_reply_to ? `${theme.dim} ↩ @${subject.in_reply_to}${theme.reset}` : "";
   const name = `${color}${subject.name}${theme.reset} ${theme.muted}@${subject.handle}${theme.reset}`;
   const meta = `${theme.dim}${age(subject.created_at)}${reply}${theme.reset}`;
-  out.push(line(`${border}╭─${theme.reset} ${rtPrefix}${name} ${meta}`, width, bg));
+  out.push(line(` ${rtPrefix}${name} ${meta}`, width, bg));
   for (const textLine of wrapPlain(subject.text || "", inner)) {
-    out.push(line(`${border}│${theme.reset} ${theme.text}${textLine}${theme.reset}`, width, bg));
+    out.push(line(` ${theme.text}${textLine}${theme.reset}`, width, bg));
   }
   if (subject.quoted) {
     const quoted = subject.quoted;
-    out.push(line(`${border}│${theme.reset} ${theme.dim}┌ quote @${quoted.handle}${theme.reset}`, width, bg));
+    out.push(line(` ${theme.dim}quote @${quoted.handle}${theme.reset}`, width, bg));
     for (const qline of wrapPlain(quoted.text || "", Math.max(4, inner - 2)).slice(0, 4)) {
-      out.push(line(`${border}│${theme.reset} ${theme.dim}│${theme.reset} ${truncateToWidth(qline, inner - 2)}`, width, bg));
+      out.push(line(` ${theme.dim}${truncateToWidth(qline, inner)}${theme.reset}`, width, bg));
     }
-    out.push(line(`${border}│${theme.reset} ${theme.dim}└ ♥ ${compact(quoted.likes)}  ↻ ${compact(quoted.retweets)}${theme.reset}`, width, bg));
+    out.push(line(` ${theme.dim}♥ ${compact(quoted.likes)}  ↻ ${compact(quoted.retweets)}${theme.reset}`, width, bg));
   }
   for (const media of subject.media ?? []) {
     const label = `${theme.tool}📎 ${media.type}${theme.reset} ${theme.dim}${media.url || media.expanded_url || "media"}${theme.reset}`;
-    out.push(line(`${border}│${theme.reset} ${truncateToWidth(label, inner)}`, width, bg));
+    out.push(line(` ${truncateToWidth(label, inner)}`, width, bg));
   }
   const stats = `${theme.muted}♥${theme.reset} ${compact(subject.likes)}  ${theme.muted}↻${theme.reset} ${compact(subject.retweets)}  ${theme.muted}💬${theme.reset} ${compact(subject.replies)}  ${theme.muted}👁${theme.reset} ${compact(subject.views)}  ${theme.dim}${subject.id}${theme.reset}`;
-  out.push(line(`${border}╰─${theme.reset} ${stats}`, width, bg));
+  out.push(line(` ${stats}`, width, bg));
   return out;
 }
 
