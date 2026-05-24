@@ -95,15 +95,15 @@ function applyFeed(feed: FeedResult, args: string[]): void {
 }
 
 function loadingLabelFor(title: string, args: string[]): string {
-  if (args[0] === "timeline" && args.includes("--latest")) return "Loading latest…";
-  if (args[0] === "timeline") return "Loading timeline…";
-  if (args[0] === "notifications") return "Loading notifs…";
-  if (args[0] === "bookmarks") return "Loading bookmarks…";
-  if (args[0] === "trending") return "Loading trends…";
+  if (args[0] === "timeline" && args.includes("--latest")) return "Loading Latest…";
+  if (args[0] === "timeline") return "Loading Timeline…";
+  if (args[0] === "notifications") return "Loading Notifs…";
+  if (args[0] === "bookmarks") return "Loading Bookmarks…";
+  if (args[0] === "trending") return "Loading Trends…";
   if (args[0] === "dms") return "Loading DMs…";
-  if (args[0] === "search") return "Loading search…";
+  if (args[0] === "search") return "Loading Search…";
   if (args[0] === "tweets") return `Loading @${String(args[1] ?? "user").replace(/^@/, "")}…`;
-  if (args[0] === "thread") return "Loading replies…";
+  if (args[0] === "thread") return "Loading Replies…";
   return `Loading ${title.toLowerCase()}…`;
 }
 

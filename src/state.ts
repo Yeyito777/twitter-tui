@@ -108,7 +108,7 @@ export function createInitialState(): AppState {
     account: null,
     cursors: {},
     timelineLoading: false,
-    timelineLoadingLabel: "Loading timeline…",
+    timelineLoadingLabel: "Loading Timeline…",
     timelineLoadingOlder: false,
     timelineLoadingNewer: false,
     timelineHasOlder: false,

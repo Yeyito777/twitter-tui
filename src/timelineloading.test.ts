@@ -17,10 +17,10 @@ describe("timeline loading helpers", () => {
   test("initial timeline load marks loading and increments request", () => {
     const state = createInitialState();
     state.items = [feed("stale").items[0]];
-    const request = beginTimelineLoad(state, "Loading latest…", true);
+    const request = beginTimelineLoad(state, "Loading Latest…", true);
     expect(request).toBe(1);
     expect(state.timelineLoading).toBe(true);
-    expect(state.timelineLoadingLabel).toBe("Loading latest…");
+    expect(state.timelineLoadingLabel).toBe("Loading Latest…");
     expect(state.items).toEqual([]);
     expect(state.timelineLoadingOlder).toBe(false);
   });

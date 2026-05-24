@@ -24,9 +24,9 @@ describe("timeline loading render", () => {
     }
 
     expect(output).toContain("main tweet");
-    expect(output).toContain("Loading replies");
-    expect(output).not.toContain("Loading timeline");
-    expect(output.indexOf("Loading replies")).toBeGreaterThan(output.indexOf("main tweet"));
+    expect(output).toContain("Loading Replies");
+    expect(output).not.toContain("Loading Timeline");
+    expect(output.indexOf("Loading Replies")).toBeGreaterThan(output.indexOf("main tweet"));
   });
 
   test("cleared top-level view loads render specific loading labels", () => {
@@ -34,7 +34,7 @@ describe("timeline loading render", () => {
     state.cols = 100;
     state.rows = 24;
     state.timelineLoading = true;
-    state.timelineLoadingLabel = "Loading latest…";
+    state.timelineLoadingLabel = "Loading Latest…";
     state.items = [];
 
     let output = "";
@@ -46,8 +46,8 @@ describe("timeline loading render", () => {
       process.stdout.write = originalWrite;
     }
 
-    expect(output).toContain("Loading latest");
-    expect(output).not.toContain("Loading timeline");
+    expect(output).toContain("Loading Latest");
+    expect(output).not.toContain("Loading Timeline");
   });
 });
 

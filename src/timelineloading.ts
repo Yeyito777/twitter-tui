@@ -5,7 +5,7 @@
 import type { AppState } from "./state";
 import type { FeedResult, TimelineItem } from "./types";
 
-export function beginTimelineLoad(state: AppState, label = "Loading timeline…", clear = false): number {
+export function beginTimelineLoad(state: AppState, label = "Loading Timeline…", clear = false): number {
   const requestId = ++state.timelineRequestId;
   state.timelineLoading = true;
   state.timelineLoadingLabel = label;
