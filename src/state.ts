@@ -6,6 +6,25 @@ export type PanelFocus = "sidebar" | "content";
 export type ContentFocus = "timeline" | "prompt";
 export type AccountStatus = "loading" | "authenticated" | "error";
 
+export interface TimelineSnapshot {
+  activeView: string;
+  title: string;
+  feedKind: string;
+  items: TimelineItem[];
+  profile: FeedResult["profile"] | null;
+  cursors: { top?: string; bottom?: string };
+  timelineHasOlder: boolean;
+  timelineHasNewer: boolean;
+  selectedIndex: number;
+  scroll: number;
+  timelineCursorRow: number;
+  timelineCursorCol: number;
+  timelineCurswant: number | null;
+  timelineLineItemIndexes: number[];
+  timelineLinePlain: string[];
+  lastArgs: string[];
+}
+
 export interface Notice {
   text: string;
   tone: NoticeTone;
@@ -66,6 +85,7 @@ export interface AppState {
   currentDmConversationId: string | null;
   replyTargetId: string | null;
   quoteTargetId: string | null;
+  timelineBackStack: TimelineSnapshot[];
 }
 
 export function createInitialState(): AppState {
@@ -106,6 +126,7 @@ export function createInitialState(): AppState {
     currentDmConversationId: null,
     replyTargetId: null,
     quoteTargetId: null,
+    timelineBackStack: [],
   };
 }
 

@@ -5,7 +5,7 @@ import { feedArgsForView, loadAccount, loadFeed, twitterCli } from "./backend";
 import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
 import { render } from "./render";
-import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS } from "./state";
+import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS, type TimelineSnapshot } from "./state";
 import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadOlderTimeline, startLoadingOlderTimeline } from "./timelineloading";
 import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor, setTimelineCursorToRow } from "./timelinecursor";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
@@ -372,6 +372,61 @@ function timelineFocused(): boolean {
   return state.panelFocus === "content" && state.contentFocus === "timeline";
 }
 
+function currentTimelineSnapshot(): TimelineSnapshot {
+  return {
+    activeView: state.activeView,
+    title: state.title,
+    feedKind: state.feedKind,
+    items: [...state.items],
+    profile: state.profile,
+    cursors: { ...state.cursors },
+    timelineHasOlder: state.timelineHasOlder,
+    timelineHasNewer: state.timelineHasNewer,
+    selectedIndex: state.selectedIndex,
+    scroll: state.scroll,
+    timelineCursorRow: state.timelineCursorRow,
+    timelineCursorCol: state.timelineCursorCol,
+    timelineCurswant: state.timelineCurswant,
+    timelineLineItemIndexes: [...state.timelineLineItemIndexes],
+    timelineLinePlain: [...state.timelineLinePlain],
+    lastArgs: [...state.lastArgs],
+  };
+}
+
+function restoreTimelineSnapshot(snapshot: TimelineSnapshot): void {
+  state.activeView = snapshot.activeView;
+  state.title = snapshot.title;
+  state.feedKind = snapshot.feedKind;
+  state.items = [...snapshot.items];
+  state.profile = snapshot.profile;
+  state.cursors = { ...snapshot.cursors };
+  state.timelineHasOlder = snapshot.timelineHasOlder;
+  state.timelineHasNewer = snapshot.timelineHasNewer;
+  state.timelineLoading = false;
+  state.timelineLoadingOlder = false;
+  state.timelineLoadingNewer = false;
+  state.selectedIndex = snapshot.selectedIndex;
+  state.scroll = snapshot.scroll;
+  state.timelineCursorRow = snapshot.timelineCursorRow;
+  state.timelineCursorCol = snapshot.timelineCursorCol;
+  state.timelineCurswant = snapshot.timelineCurswant;
+  state.timelineLineItemIndexes = [...snapshot.timelineLineItemIndexes];
+  state.timelineLinePlain = [...snapshot.timelineLinePlain];
+  state.lastArgs = [...snapshot.lastArgs];
+  focusTimeline(state);
+  setNotice(state, "", "muted");
+  syncLoading();
+  scheduleRender();
+}
+
+function goBackToSavedTimeline(): boolean {
+  if (!timelineFocused() || state.feedKind !== "thread") return false;
+  const snapshot = state.timelineBackStack.pop();
+  if (!snapshot) return false;
+  restoreTimelineSnapshot(snapshot);
+  return true;
+}
+
 function afterTimelineCursorMove(): void {
   void maybeLoadOlderTimeline();
 }
@@ -420,6 +475,7 @@ async function activateSelection(): Promise<void> {
   const id = selectedTweetId();
   if (id) {
     const tweet = selectedTweet();
+    if (state.feedKind !== "thread") state.timelineBackStack.push(currentTimelineSnapshot());
     state.title = `Thread ${id}`;
     state.feedKind = "thread";
     state.activeView = "thread";
@@ -550,6 +606,7 @@ async function handleKey(key: KeyEvent): Promise<void> {
     case "j": state.panelFocus === "sidebar" ? sidebarMove(1) : timelineFocused() ? (moveTimelineCursorRows(state, 1), afterTimelineCursorMove()) : moveSelection(1); return;
     case "k": state.panelFocus === "sidebar" ? sidebarMove(-1) : timelineFocused() ? (moveTimelineCursorRows(state, -1), afterTimelineCursorMove()) : moveSelection(-1); return;
     case "h": if (timelineFocused()) moveTimelineCursorCols(state, -1); return;
+    case "H": if (goBackToSavedTimeline()) return; break;
     case "l": if (timelineFocused()) { moveTimelineCursorCols(state, 1); return; }
       {
         const id = selectedTweetId();
