@@ -1,4 +1,4 @@
-import { displayCursor, getInputLines, MAX_PROMPT_ROWS, PROMPT_PREFIX_WIDTH } from "./editor";
+import { displayCursor, getInputLines, getVisualRange, MAX_PROMPT_ROWS, PROMPT_PREFIX_WIDTH, wrappedLineOffsets } from "./editor";
 import { renderLineWithCursor } from "./historyrender";
 import { LOADING_FRAMES, loadingLabel } from "./loading";
 import { focusLabel, VIEWS, type AppState } from "./state";
@@ -18,6 +18,26 @@ function stripAnsi(text: string): string {
 
 function sanitize(text: string): string {
   return text.replace(/\r/g, "").replace(/\t/g, "  ");
+}
+
+function highlightPromptSelection(
+  text: string,
+  wrappedLineIdx: number,
+  selectionStart: number,
+  selectionEndExclusive: number,
+  offsets: number[],
+): string {
+  if (wrappedLineIdx >= offsets.length) return `${theme.text}${text}${theme.reset}`;
+  const lineStart = offsets[wrappedLineIdx];
+  const lineEndExclusive = lineStart + text.length;
+  const overlapStart = Math.max(selectionStart, lineStart);
+  const overlapEndExclusive = Math.min(selectionEndExclusive, lineEndExclusive);
+  if (overlapStart >= overlapEndExclusive) return `${theme.text}${text}${theme.reset}`;
+  const relStart = overlapStart - lineStart;
+  const relEnd = overlapEndExclusive - lineStart;
+  return `${theme.text}${text.slice(0, relStart)}`
+    + `${theme.selectionBg}${theme.text}${text.slice(relStart, relEnd)}${theme.reset}${theme.text}`
+    + `${text.slice(relEnd)}${theme.reset}`;
 }
 
 function wrapPlain(text: string, width: number): string[] {
@@ -294,7 +314,7 @@ export function render(state: AppState): void {
   for (let r = 0; r < bodyHeight; r++) {
     const rowIndex = state.scroll + r;
     let content = flat[rowIndex] ?? "";
-    content = applyTimelineVisualSelection(state, content, rowIndex);
+    if (timelineFocused) content = applyTimelineVisualSelection(state, content, rowIndex);
     if (timelineFocused && rowIndex === state.timelineCursorRow) content = renderLineWithCursor(content, state.timelineCursorCol);
     out.push(moveTo(bodyTop + r, mainCol) + line(content, mainW, bg));
   }
@@ -302,12 +322,18 @@ export function render(state: AppState): void {
 
   const mode = state.editor.mode === "insert" ? "I" : state.editor.mode === "normal" ? "N" : "V";
   const modeColor = state.editor.mode === "insert" ? theme.vimInsert : state.editor.mode === "normal" ? theme.vimNormal : theme.vimVisual;
+  const offsets = wrappedLineOffsets(state.editor.buffer, promptInner);
+  const promptInVisual = promptFocused && (state.editor.mode === "visual" || state.editor.mode === "visual-line");
+  const promptSelection = promptInVisual ? getVisualRange(state.editor.buffer, state.editor.visualAnchor, state.editor.cursor, state.editor.mode) : null;
   let cursorRow = promptTop;
   let cursorCol = mainCol + PROMPT_PREFIX_WIDTH + input.cursorCol;
   for (let i = 0; i < promptRows; i++) {
     const prefix = i === 0 ? `${modeColor}${mode}${theme.reset}${theme.prompt} ›${theme.reset} ` : `${theme.dim}  ·${theme.reset} `;
     const text = input.lines[i] ?? "";
-    out.push(moveTo(promptTop + i, mainCol) + line(`${prefix}${theme.text}${text}${theme.reset}`, mainW, bg));
+    const lineContent = promptSelection
+      ? highlightPromptSelection(text, input.scrollOffset + i, promptSelection.start, promptSelection.endExclusive, offsets)
+      : `${theme.text}${text}${theme.reset}`;
+    out.push(moveTo(promptTop + i, mainCol) + line(`${prefix}${lineContent}`, mainW, bg));
     if (i === input.cursorLine) {
       cursorRow = promptTop + i;
       cursorCol = mainCol + PROMPT_PREFIX_WIDTH + input.cursorCol;

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
 import { displayTweetText, render } from "./render";
+import { theme } from "./theme";
 
 describe("timeline loading render", () => {
   test("thread loads show replies loader below cached main tweet", () => {
@@ -26,6 +27,39 @@ describe("timeline loading render", () => {
     expect(output).toContain("Loading replies");
     expect(output).not.toContain("Loading timeline");
     expect(output.indexOf("Loading replies")).toBeGreaterThan(output.indexOf("main tweet"));
+  });
+});
+
+describe("prompt visual render", () => {
+  test("prompt visual selection renders in prompt, not chat history", () => {
+    const state = createInitialState();
+    state.cols = 100;
+    state.rows = 24;
+    state.panelFocus = "content";
+    state.contentFocus = "prompt";
+    state.editor.buffer = "hello world";
+    state.editor.mode = "visual-line";
+    state.editor.visualAnchor = 0;
+    state.editor.cursor = 4;
+    state.timelineLinePlain = [" tweet line"];
+    state.timelineLineItemIndexes = [0];
+    state.timelineVisualAnchor = { row: 0, col: 1 };
+    state.timelineCursorRow = 0;
+    state.timelineCursorCol = 1;
+    state.items = [{ id: "1", name: "A", handle: "a", text: "tweet line", created_at: "", url: "" }];
+
+    let output = "";
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (chunk: string | Uint8Array) => { output += String(chunk); return true; };
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(output).toContain("hello world");
+    expect(output).toContain(theme.selectionBg);
+    expect(output.split(theme.selectionBg).length - 1).toBe(1);
   });
 });
 
