@@ -335,10 +335,12 @@ async function submit(text: string): Promise<void> {
     } else if (state.replyTargetId) {
       const id = state.replyTargetId;
       state.replyTargetId = null;
+      setNotice(state, "", "muted");
       await action("Replying", ["reply", id, raw], refresh);
     } else if (state.quoteTargetId) {
       const id = state.quoteTargetId;
       state.quoteTargetId = null;
+      setNotice(state, "", "muted");
       await action("Quote tweeting", ["post", "--quote", id, raw], refresh);
     } else {
       await action("Posting", ["post", raw], refresh);
@@ -531,6 +533,7 @@ function prepareReply(): void {
     return;
   }
   state.replyTargetId = id;
+  state.quoteTargetId = null;
   setPrompt("");
   const tweet = selectedTweet();
   setNotice(state, `Replying to @${tweet?.handle ?? id}`, "muted");
@@ -543,6 +546,7 @@ function prepareQuote(): void {
     return;
   }
   state.quoteTargetId = id;
+  state.replyTargetId = null;
   setPrompt("");
   const tweet = selectedTweet();
   setNotice(state, `Quote tweeting @${tweet?.handle ?? id}`, "muted");

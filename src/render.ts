@@ -283,6 +283,16 @@ function renderTopbar(state: AppState, width: number): string {
   return line(`${theme.text}${theme.bold}${text}${theme.boldOff}${theme.reset}`, width, theme.topbarBg);
 }
 
+function promptContextText(state: AppState): string {
+  const targetId = state.replyTargetId ?? state.quoteTargetId;
+  if (!targetId) return state.notice.text;
+  const target = state.items.find((item) => isTweet(item) && item.id === targetId);
+  const tweet = isTweet(target) ? (target.is_retweet && target.retweeted ? target.retweeted : target) : null;
+  const handle = tweet?.handle ? `@${tweet.handle}` : targetId;
+  const action = state.replyTargetId ? "Replying to" : "Quote tweeting";
+  return `${action} ${handle}`;
+}
+
 export function render(state: AppState): void {
   const cols = Math.max(40, state.cols);
   const rows = Math.max(10, state.rows);
@@ -293,14 +303,17 @@ export function render(state: AppState): void {
   const mainW = Math.max(1, cols - sidebarW);
   const status = renderStatusLine(state, mainW);
   const statusHeight = status.height;
+  const contextText = promptContextText(state);
+  const contextRows = contextText ? 1 : 0;
   const promptInner = Math.max(1, mainW - PROMPT_PREFIX_WIDTH - 2);
-  const input = getInputLines(state.editor.buffer, displayCursor(state.editor), promptInner, Math.max(1, Math.min(MAX_PROMPT_ROWS, rows - 6 - statusHeight)), state.editor.scroll);
+  const input = getInputLines(state.editor.buffer, displayCursor(state.editor), promptInner, Math.max(1, Math.min(MAX_PROMPT_ROWS, rows - 6 - statusHeight - contextRows)), state.editor.scroll);
   state.editor.scroll = input.scrollOffset;
   const promptRows = Math.max(1, input.lines.length);
   const bodyTop = 3;
   const statusTop = rows - statusHeight + 1;
   const promptBottomSeparatorRow = statusHeight > 0 ? statusTop - 1 : rows + 1;
-  const promptTop = Math.max(bodyTop + 1, promptBottomSeparatorRow - promptRows);
+  const promptTop = Math.max(bodyTop + 1, promptBottomSeparatorRow - promptRows - contextRows);
+  const contextRow = contextText ? promptTop + promptRows : 0;
   const promptSeparatorRow = promptTop - 1;
   const bodyHeight = Math.max(1, promptSeparatorRow - bodyTop);
   const out: string[] = [disableAutowrap, hideCursor];
@@ -405,6 +418,18 @@ export function render(state: AppState): void {
       cursorRow = promptTop + i;
       cursorCol = mainCol + PROMPT_PREFIX_WIDTH + input.cursorCol;
     }
+  }
+  if (contextText) {
+    const tone = state.replyTargetId || state.quoteTargetId
+      ? theme.accent
+      : state.notice.tone === "error"
+        ? theme.error
+        : state.notice.tone === "warning"
+          ? theme.warning
+          : state.notice.tone === "success"
+            ? theme.success
+            : theme.muted;
+    out.push(moveTo(contextRow, mainCol) + line(`${theme.dim}  ↳ ${tone}${truncateToWidth(contextText, Math.max(1, mainW - 4))}${theme.reset}`, mainW, bg));
   }
   if (statusHeight > 0) {
     out.push(moveTo(promptBottomSeparatorRow, mainCol) + line(`${promptFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`, mainW, bg));

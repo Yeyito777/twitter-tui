@@ -129,6 +129,31 @@ describe("prompt visual render", () => {
   });
 });
 
+describe("prompt context render", () => {
+  test("reply target is visibly rendered below the prompt", () => {
+    const state = createInitialState();
+    state.cols = 100;
+    state.rows = 24;
+    state.panelFocus = "content";
+    state.contentFocus = "prompt";
+    state.items = [{ id: "1", name: "A", handle: "alice", text: "hello", created_at: "", url: "" }];
+    state.replyTargetId = "1";
+    state.notice.text = "Replying to @alice";
+
+    let output = "";
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (chunk: string | Uint8Array) => { output += String(chunk); return true; };
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(output).toContain("↳");
+    expect(output).toContain("Replying to @alice");
+  });
+});
+
 describe("timeline visual render", () => {
   test("visual-line selection highlights rendered lines without selected tweet card background", () => {
     const state = createInitialState();
