@@ -14,7 +14,7 @@ export interface CompletionItem {
 export type CommandResult =
   | { type: "handled" }
   | { type: "quit" }
-  | { type: "login"; credential?: string }
+  | { type: "login"; credential: string }
   | { type: "logout" }
   | { type: "theme_changed" };
 
@@ -60,11 +60,11 @@ const commands: SlashCommand[] = [
     getArgs: (state) => ({
       "/login": Object.keys(state.savedLogins).sort((a, b) => a.localeCompare(b)).map((name) => ({ name, desc: "saved login" })),
     }),
-    handler: (text) => {
+    handler: (text, state) => {
       const parts = splitCommand(text);
-      if (parts.length === 1) return { type: "login" };
+      if (parts.length === 1) return usage(state, "Usage: /login <saved-login|auth_token ct0|cookie-string|json>");
       const credential = text.slice(parts[0].length).trim();
-      if (!credential) return { type: "login" };
+      if (!credential) return usage(state, "Usage: /login <saved-login|auth_token ct0|cookie-string|json>");
       return { type: "login", credential };
     },
   },

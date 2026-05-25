@@ -1,13 +1,24 @@
 /** Record-style login/logout helpers for Twitter credentials. */
 
-import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 
-import { clearConfig, configDir, loadSavedLogins, saveConfig, saveSavedLogins, type SavedLogins, type TwitterCredentials } from "./config";
+import { clearConfig, loadConfig, loadSavedLogins, saveConfig, saveSavedLogins, type SavedLogins, type TwitterCredentials } from "./config";
 import type { Account } from "./types";
 
-const TWITTER_CLI_ROOT = "/home/yeyito/Workspace/exocortex/external-tools/twitter-cli/src";
-const TWITTER_CLI_CREDENTIALS_FILE = join(TWITTER_CLI_ROOT, "config", "credentials.json");
+const DEFAULT_TWITTER_CLI_ROOT = "/home/yeyito/Workspace/exocortex/external-tools/twitter-cli";
+
+function twitterCliRoot(): string {
+  return process.env.TWITTER_TUI_TWITTER_CLI_ROOT?.trim() || DEFAULT_TWITTER_CLI_ROOT;
+}
+
+export function twitterCliCredentialsFile(): string {
+  return join(twitterCliRoot(), "config", "credentials.json");
+}
+
+function legacyWrongCredentialsFile(): string {
+  return join(twitterCliRoot(), "src", "config", "credentials.json");
+}
 
 export function normalizeCredential(value: string): string {
   return value.replace(/\r\n/g, " ").replace(/[\r\n\t]+/g, " ").trim().replace(/\s+/g, " ");
@@ -40,17 +51,49 @@ export function loadSavedLoginsSafe(): SavedLogins {
   try { return loadSavedLogins(); } catch { return {}; }
 }
 
+export function loadConfiguredCredentials(): TwitterCredentials | null {
+  try {
+    const config = loadConfig();
+    const auth_token = typeof config.auth_token === "string" ? config.auth_token.trim() : "";
+    const ct0 = typeof config.ct0 === "string" ? config.ct0.trim() : "";
+    return auth_token && ct0 ? { auth_token, ct0 } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function resolveLoginCredential(savedLogins: SavedLogins, credential: string): TwitterCredentials | null {
   return savedLogins[credential] ?? parseCredentialPair(credential);
 }
 
 export function writeTwitterCliCredentials(credentials: TwitterCredentials): void {
-  mkdirSync(join(TWITTER_CLI_ROOT, "config"), { recursive: true, mode: 0o700 });
-  writeFileSync(TWITTER_CLI_CREDENTIALS_FILE, `${JSON.stringify(credentials, null, 2)}\n`, { mode: 0o600 });
+  const credentialsFile = twitterCliCredentialsFile();
+  mkdirSync(join(twitterCliRoot(), "config"), { recursive: true, mode: 0o700 });
+  writeFileSync(credentialsFile, `${JSON.stringify(credentials, null, 2)}\n`, { mode: 0o600 });
+  // 2026-05-25 bugfix: older twitter-tui builds accidentally wrote here. The
+  // real twitter CLI reads <root>/config/credentials.json, so remove the stale
+  // shadow file after a successful write to avoid future confusion.
+  rmSync(legacyWrongCredentialsFile(), { force: true });
 }
 
 export function removeTwitterCliCredentials(): void {
-  rmSync(TWITTER_CLI_CREDENTIALS_FILE, { force: true });
+  rmSync(twitterCliCredentialsFile(), { force: true });
+  rmSync(legacyWrongCredentialsFile(), { force: true });
+}
+
+export function snapshotTwitterCliCredentials(): string | null {
+  const credentialsFile = twitterCliCredentialsFile();
+  return existsSync(credentialsFile) ? readFileSync(credentialsFile, "utf8") : null;
+}
+
+export function restoreTwitterCliCredentials(snapshot: string | null): void {
+  const credentialsFile = twitterCliCredentialsFile();
+  if (snapshot === null) {
+    rmSync(credentialsFile, { force: true });
+    return;
+  }
+  mkdirSync(join(twitterCliRoot(), "config"), { recursive: true, mode: 0o700 });
+  writeFileSync(credentialsFile, snapshot, { mode: 0o600 });
 }
 
 function nextSavedLogins(savedLogins: SavedLogins, account: Account, credentials: TwitterCredentials): SavedLogins {
@@ -72,4 +115,4 @@ export function logoutCredentials(): void {
   removeTwitterCliCredentials();
 }
 
-export { TWITTER_CLI_CREDENTIALS_FILE };
+export { DEFAULT_TWITTER_CLI_ROOT };

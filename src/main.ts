@@ -3,7 +3,7 @@
 
 import { feedArgsForView, loadAccount, loadFeed, twitterCli } from "./backend";
 import { acceptAutocomplete, cycleAutocomplete, dismissAutocomplete, tryPathComplete, updateAutocomplete } from "./autocomplete";
-import { loadSavedLoginsSafe, logoutCredentials, resolveLoginCredential, saveValidatedLogin, writeTwitterCliCredentials } from "./authflow";
+import { loadConfiguredCredentials, loadSavedLoginsSafe, logoutCredentials, resolveLoginCredential, restoreTwitterCliCredentials, saveValidatedLogin, snapshotTwitterCliCredentials, writeTwitterCliCredentials } from "./authflow";
 import { tryCommand, type CommandResult } from "./commands";
 import { cachedFeedForArgs, cachedFeedForArgsAnyAccount, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
 import { displayCursor, handleEditorKey, resetEditor } from "./editor";
@@ -209,8 +209,11 @@ async function hydrateAccount(): Promise<void> {
   state.account = null;
   scheduleRender();
   try {
+    const configuredCredentials = loadConfiguredCredentials();
+    if (configuredCredentials) writeTwitterCliCredentials(configuredCredentials);
     state.account = await loadAccount();
     state.accountStatus = "authenticated";
+    if (configuredCredentials) state.savedLogins = saveValidatedLogin(state.savedLogins, state.account, configuredCredentials);
     if (state.items.length > 0) persistFeedForArgs(state.lastArgs, currentFeedResult());
     scheduleRender();
   } catch {
@@ -269,27 +272,7 @@ async function applyCommandResult(result: CommandResult | null, raw: string): Pr
   }
 }
 
-async function login(credential?: string): Promise<void> {
-  if (!credential) {
-    setNotice(state, "Launching twitter login…", "muted", true);
-    scheduleRender();
-    try {
-      await twitterCli(["login"], 10 * 60 * 1000);
-      state.accountStatus = "loading";
-      state.account = null;
-      const account = await loadAccount();
-      state.account = account;
-      state.accountStatus = "authenticated";
-      setNotice(state, "", "muted");
-    } catch (error) {
-      state.accountStatus = "error";
-      setNotice(state, error instanceof Error ? error.message : String(error), "error");
-    } finally {
-      scheduleRender();
-    }
-    return;
-  }
-
+async function login(credential: string): Promise<void> {
   const credentials = resolveLoginCredential(state.savedLogins, credential);
   if (!credentials) {
     setNotice(state, "Usage: /login [saved-login|auth_token ct0]", "warning");
@@ -301,6 +284,7 @@ async function login(credential?: string): Promise<void> {
   state.account = null;
   setNotice(state, "Validating Twitter credentials…", "muted", true);
   scheduleRender();
+  const previousCredentials = snapshotTwitterCliCredentials();
   try {
     writeTwitterCliCredentials(credentials);
     const account = await loadAccount();
@@ -309,6 +293,7 @@ async function login(credential?: string): Promise<void> {
     state.savedLogins = saveValidatedLogin(state.savedLogins, account, credentials);
     setNotice(state, "", "muted");
   } catch (error) {
+    restoreTwitterCliCredentials(previousCredentials);
     state.accountStatus = "error";
     setNotice(state, error instanceof Error ? error.message : String(error), "error");
   } finally {

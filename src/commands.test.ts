@@ -16,7 +16,8 @@ describe("slash commands", () => {
     const state = createInitialState();
     expect(tryCommand("/quit", state)).toEqual({ type: "quit" });
     expect(tryCommand("/logout", state)).toEqual({ type: "logout" });
-    expect(tryCommand("/login", state)).toEqual({ type: "login" });
+    expect(tryCommand("/login", state)).toEqual({ type: "handled" });
+    expect(state.notice.text).toContain("Usage: /login");
     expect(tryCommand("/login saved", state)).toEqual({ type: "login", credential: "saved" });
     expect(tryCommand("/latest", state)).toBeNull();
   });
