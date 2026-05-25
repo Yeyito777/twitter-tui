@@ -1,4 +1,5 @@
 import { createEditorState, displayCursor, enterInsertMode, leaveInsertMode, type EditorState } from "./editor";
+import type { AutocompleteState } from "./autocomplete";
 import type { Account, FeedResult, TimelineItem } from "./types";
 import type { NoticeTone } from "./theme";
 
@@ -80,6 +81,7 @@ export interface AppState {
   timelineLineItemIndexes: number[];
   timelineLinePlain: string[];
   editor: EditorState;
+  autocomplete: AutocompleteState | null;
   notice: Notice;
   loadingFrameIndex: number;
   commandHistory: string[];
@@ -123,6 +125,7 @@ export function createInitialState(): AppState {
     timelineLineItemIndexes: [],
     timelineLinePlain: [],
     editor: createEditorState("", "insert"),
+    autocomplete: null,
     notice: { text: "", tone: "muted", loading: false },
     loadingFrameIndex: 0,
     commandHistory: [],

@@ -2,6 +2,8 @@
 /** twitter-tui — record-style Twitter/X terminal client. */
 
 import { feedArgsForView, loadAccount, loadFeed, twitterCli } from "./backend";
+import { acceptAutocomplete, cycleAutocomplete, dismissAutocomplete, tryPathComplete, updateAutocomplete } from "./autocomplete";
+import { splitCommand, tryCommand, type CommandResult } from "./commands";
 import { cachedFeedForArgs, cachedFeedForArgsAnyAccount, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
 import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
@@ -246,6 +248,7 @@ function openUrl(url: string): void {
 function setPrompt(text: string): void {
   resetEditor(state.editor, text, "insert");
   focusPrompt(state);
+  updateAutocomplete(state);
 }
 
 function pushHistory(command: string): void {
@@ -254,21 +257,25 @@ function pushHistory(command: string): void {
   state.commandHistoryIndex = null;
 }
 
-function commandHelp(): void {
-  state.title = "Help";
-  state.feedKind = "help";
-  state.profile = null;
-  state.items = [];
-  state.scroll = 0;
-  setNotice(state, "Commands: /home /latest /search <q> /user @name /profile @name /tweet <id> /thread [id] /post <text> /reply [id] <text> /like [id] /rt [id] /bookmark [id] /dms /dm <id|@user> /theme <name>", "muted");
+async function applyCommandResult(result: CommandResult | null, raw: string): Promise<boolean> {
+  if (!result) return false;
+  switch (result.type) {
+    case "handled": return true;
+    case "quit": running = false; shutdown(); return true;
+    case "refresh": await refresh(); return true;
+    case "open": {
+      const target = result.target ?? selectedUrl();
+      if (!target) setNotice(state, "nothing openable selected", "warning");
+      else openUrl(target);
+      return true;
+    }
+    case "load": await load(result.args, result.title); return true;
+    case "action": await action(result.label, result.args, result.refresh ? refresh : undefined); return true;
+  }
 }
 
-function splitCommand(input: string): string[] {
-  const parts: string[] = [];
-  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(input))) parts.push(m[1] ?? m[2] ?? m[3] ?? "");
-  return parts;
+function commandHelp(): void {
+  void applyCommandResult(tryCommand("/help", state), "/help");
 }
 
 async function submit(text: string): Promise<void> {
@@ -276,6 +283,7 @@ async function submit(text: string): Promise<void> {
   if (!raw) return;
   pushHistory(text);
   resetEditor(state.editor, "", "insert");
+  state.autocomplete = null;
 
   if (!raw.startsWith("/")) {
     if (state.currentDmConversationId && state.feedKind === "dm") {
@@ -293,6 +301,8 @@ async function submit(text: string): Promise<void> {
     }
     return;
   }
+
+  if (await applyCommandResult(tryCommand(raw, state), raw)) return;
 
   const withoutSlash = raw.slice(1);
   const [cmdRaw, ...rest] = splitCommand(withoutSlash);
@@ -523,6 +533,7 @@ function commandHistory(delta: number): boolean {
   const next = Math.max(0, Math.min(state.commandHistory.length - 1, start + delta));
   state.commandHistoryIndex = next;
   resetEditor(state.editor, state.commandHistory[next] ?? "", "insert");
+  updateAutocomplete(state);
   return true;
 }
 
@@ -632,11 +643,27 @@ async function handleGlobalKey(key: KeyEvent): Promise<boolean> {
 }
 
 async function handlePromptKey(key: KeyEvent): Promise<void> {
+  if (key.type === "tab") {
+    if (state.autocomplete) cycleAutocomplete(state, 1);
+    else tryPathComplete(state);
+    scheduleRender();
+    return;
+  }
+  if (key.type === "backtab") {
+    if (state.autocomplete) cycleAutocomplete(state, -1);
+    scheduleRender();
+    return;
+  }
+  if (key.type === "escape" && state.autocomplete) acceptAutocomplete(state);
+
+  const previousBuffer = state.editor.buffer;
+  const previousCursor = state.editor.cursor;
   if (key.type === "up" && commandHistory(-1)) return;
   if (key.type === "down" && state.commandHistoryIndex !== null) {
     if (state.commandHistoryIndex >= state.commandHistory.length - 1) {
       state.commandHistoryIndex = null;
       resetEditor(state.editor, "", "insert");
+      state.autocomplete = null;
     } else commandHistory(1);
     return;
   }
@@ -650,6 +677,7 @@ async function handlePromptKey(key: KeyEvent): Promise<void> {
   } else if (actionResult === "scroll_bottom") {
     state.selectedIndex = Math.max(0, state.items.length - 1);
   }
+  if (state.editor.buffer !== previousBuffer || state.editor.cursor !== previousCursor) updateAutocomplete(state);
 }
 
 async function handleKey(key: KeyEvent): Promise<void> {

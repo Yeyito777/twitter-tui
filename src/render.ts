@@ -1,6 +1,7 @@
 import { displayCursor, getInputLines, getVisualRange, MAX_PROMPT_ROWS, PROMPT_PREFIX_WIDTH, wrappedLineOffsets } from "./editor";
 import { renderLineWithCursor } from "./historyrender";
 import { LOADING_FRAMES, loadingLabel } from "./loading";
+import { highlightPromptViewport } from "./prompthighlight";
 import { focusLabel, VIEWS, type AppState } from "./state";
 import { renderStatusLine } from "./statusline";
 import { syncTimelineCursorToSelection, stripTimelineAnsi } from "./timelinecursor";
@@ -38,6 +39,41 @@ function highlightPromptSelection(
   return `${theme.text}${text.slice(0, relStart)}`
     + `${theme.selectionBg}${theme.text}${text.slice(relStart, relEnd)}${theme.reset}${theme.text}`
     + `${text.slice(relEnd)}${theme.reset}`;
+}
+
+function renderAutocompletePopup(state: AppState, width: number, promptSeparatorRow: number, mainCol: number): string {
+  const autocomplete = state.autocomplete;
+  if (!autocomplete || autocomplete.matches.length === 0) return "";
+
+  const out: string[] = [];
+  const { matches, selection } = autocomplete;
+  const maxName = matches.reduce((max, item) => Math.max(max, termWidth(item.name)), 0);
+  const maxDesc = matches.reduce((max, item) => Math.max(max, termWidth(item.desc)), 0);
+  const popupWidth = Math.max(1, Math.min(maxName + maxDesc + 6, Math.max(1, width - 2)));
+  const nameWidth = Math.min(maxName + 1, popupWidth - 4);
+  const descWidth = Math.max(0, popupWidth - nameWidth - 4);
+  const maxVisible = Math.max(1, promptSeparatorRow - 3);
+  const total = matches.length;
+  const winSize = Math.min(total, maxVisible);
+  let winStart = 0;
+  if (total > maxVisible && selection >= 0) {
+    const ideal = selection - Math.floor(winSize / 2);
+    winStart = Math.max(0, Math.min(ideal, total - winSize));
+  }
+
+  const topRow = promptSeparatorRow - winSize;
+  for (let visibleIndex = 0; visibleIndex < winSize; visibleIndex++) {
+    const index = winStart + visibleIndex;
+    const row = topRow + visibleIndex;
+    const selected = selection === index;
+    const popupBg = selected ? theme.sidebarSelBg : theme.sidebarBg;
+    const marker = selected ? "▸ " : "  ";
+    const name = padRightToWidth(matches[index].name, nameWidth);
+    const desc = padRightToWidth(matches[index].desc, descWidth);
+    const nameColor = matches[index].color ?? theme.text;
+    out.push(moveTo(row, mainCol) + `${popupBg}${theme.accent}${marker}${nameColor}${name}${theme.muted}${desc}${theme.reset}`);
+  }
+  return out.join("");
 }
 
 function wrapPlain(text: string, width: number): string[] {
@@ -342,6 +378,7 @@ export function render(state: AppState): void {
     if (timelineFocused && rowIndex === state.timelineCursorRow) content = renderLineWithCursor(content, state.timelineCursorCol);
     out.push(moveTo(bodyTop + r, mainCol) + line(content, mainW, bg));
   }
+  if (promptFocused && state.autocomplete) out.push(renderAutocompletePopup(state, mainW, promptSeparatorRow, mainCol));
   out.push(moveTo(promptSeparatorRow, mainCol) + `${promptFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`);
 
   const mode = state.editor.mode === "insert" ? "I" : state.editor.mode === "normal" ? "N" : "V";
@@ -361,7 +398,9 @@ export function render(state: AppState): void {
     const text = input.lines[i] ?? "";
     const lineContent = promptSelection
       ? highlightPromptSelection(text, input.scrollOffset + i, promptSelection.start, promptSelection.endExclusive, offsets)
-      : `${theme.text}${text}${theme.reset}`;
+      : text.length > 0
+        ? highlightPromptViewport(text, state.editor.buffer, offsets[input.scrollOffset + i] ?? 0, state)
+        : `${theme.text}${text}${theme.reset}`;
     out.push(moveTo(promptTop + i, mainCol) + line(`${prefix}${lineContent}`, mainW, bg));
     if (i === input.cursorLine) {
       cursorRow = promptTop + i;
