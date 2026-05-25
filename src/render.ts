@@ -4,7 +4,7 @@ import { LOADING_FRAMES, loadingLabel } from "./loading";
 import { highlightPromptViewport } from "./prompthighlight";
 import { focusLabel, VIEWS, type AppState } from "./state";
 import { renderStatusLine } from "./statusline";
-import { syncTimelineCursorToSelection, stripTimelineAnsi } from "./timelinecursor";
+import { clampTimelineCursor, stripTimelineAnsi } from "./timelinecursor";
 import { applyTimelineVisualSelection } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type TimelineItem, type TweetItem } from "./types";
 import { authorColor, theme } from "./theme";
@@ -362,8 +362,9 @@ export function render(state: AppState): void {
   const selectedEnd = (starts[selectedCardIndex] ?? 0) + (cards[selectedCardIndex]?.length ?? 1);
   state.timelineLineItemIndexes = lineItemIndexes;
   state.timelineLinePlain = flat.map(stripTimelineAnsi);
-  if (state.timelineCursorRow < 0 || state.timelineCursorRow >= state.timelineLinePlain.length) {
-    syncTimelineCursorToSelection(state, state.profile ? starts.slice(1) : starts);
+  const cursorItemIndex = state.timelineLineItemIndexes[state.timelineCursorRow];
+  if (state.timelineCursorRow < 0 || state.timelineCursorRow >= state.timelineLinePlain.length || cursorItemIndex === undefined || cursorItemIndex < 0) {
+    clampTimelineCursor(state, state.timelineCursorRow <= 0 ? 1 : -1);
   }
   if (state.timelineCursorRow < state.scroll) state.scroll = state.timelineCursorRow;
   if (state.timelineCursorRow >= state.scroll + bodyHeight) state.scroll = Math.max(0, state.timelineCursorRow - bodyHeight + 1);

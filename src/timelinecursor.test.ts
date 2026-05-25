@@ -144,4 +144,43 @@ describe("timeline record-style ctrl scrolling", () => {
     expect(state.timelineCursorCol).toBe(1);
     expect(state.selectedIndex).toBe(17);
   });
+
+  test("cursor skips synthetic loading rows instead of landing on them", () => {
+    const state = createInitialState();
+    state.timelineLinePlain = [" tweet", "", " Loading More Tweets…"];
+    state.timelineLineItemIndexes = [0, 0, -1];
+    state.items = [{ id: "1", name: "A", handle: "a", text: "tweet", created_at: "", url: "" }];
+    state.timelineCursorRow = 1;
+    state.timelineCursorCol = 1;
+    state.selectedIndex = 0;
+
+    moveTimelineCursorRows(state, 1);
+
+    expect(state.timelineCursorRow).toBe(1);
+    expect(state.selectedIndex).toBe(0);
+  });
+
+  test("render clamps past-bottom cursor to last rendered line instead of snapping to selected tweet start", () => {
+    const state = createInitialState();
+    state.cols = 120;
+    state.rows = 20;
+    state.panelFocus = "content";
+    state.contentFocus = "timeline";
+    state.items = [{ id: "1", name: "A", handle: "a", text: "first\nsecond", created_at: "", url: "" }];
+    state.selectedIndex = 0;
+    state.timelineCursorRow = 999;
+    state.timelineCursorCol = 1;
+    state.scroll = 999;
+
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (() => true) as typeof process.stdout.write;
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(state.timelineCursorRow).toBeGreaterThan(0);
+    expect(state.timelineCursorRow).toBe(state.timelineLinePlain.length - 1);
+  });
 });

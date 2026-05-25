@@ -40,7 +40,28 @@ export function clampTimelineCol(col: number, lines: string[], row: number): num
   return Math.max(start, Math.min(col, end));
 }
 
-export function clampTimelineCursor(state: AppState): void {
+function nearestSelectableTimelineRow(state: AppState, row: number, preferredDir = 0): number {
+  const lines = state.timelineLinePlain;
+  if (lines.length === 0) return 0;
+  const indexes = state.timelineLineItemIndexes;
+  if (indexes.length !== lines.length) return row;
+  const isSelectable = (candidate: number): boolean => {
+    const itemIndex = indexes[candidate];
+    return itemIndex !== undefined && itemIndex >= 0 && itemIndex < state.items.length;
+  };
+  if (isSelectable(row)) return row;
+
+  const dirs = preferredDir > 0 ? [1, -1] : preferredDir < 0 ? [-1, 1] : [1, -1];
+  for (let distance = 1; distance < lines.length; distance++) {
+    for (const dir of dirs) {
+      const candidate = row + distance * dir;
+      if (candidate >= 0 && candidate < lines.length && isSelectable(candidate)) return candidate;
+    }
+  }
+  return row;
+}
+
+export function clampTimelineCursor(state: AppState, preferredDir = 0): void {
   const lines = state.timelineLinePlain;
   if (lines.length === 0) {
     state.timelineCursorRow = 0;
@@ -49,12 +70,14 @@ export function clampTimelineCursor(state: AppState): void {
     return;
   }
   state.timelineCursorRow = Math.max(0, Math.min(state.timelineCursorRow, lines.length - 1));
+  state.timelineCursorRow = nearestSelectableTimelineRow(state, state.timelineCursorRow, preferredDir);
   state.timelineCursorCol = clampTimelineCol(state.timelineCursorCol, lines, state.timelineCursorRow);
 }
 
 export function setTimelineCursorToRow(state: AppState, row: number): void {
+  const previousRow = state.timelineCursorRow;
   state.timelineCursorRow = Math.max(0, Math.min(row, Math.max(0, state.timelineLinePlain.length - 1)));
-  state.timelineCursorCol = clampTimelineCol(state.timelineCursorCol, state.timelineLinePlain, state.timelineCursorRow);
+  clampTimelineCursor(state, Math.sign(row - previousRow));
   state.timelineCurswant = null;
   syncTimelineSelectionToCursor(state);
 }
@@ -64,7 +87,8 @@ export function moveTimelineCursorRows(state: AppState, delta: number): void {
   const desiredCol = state.timelineCurswant ?? state.timelineCursorCol;
   const targetRow = Math.max(0, Math.min(state.timelineCursorRow + delta, state.timelineLinePlain.length - 1));
   state.timelineCursorRow = targetRow;
-  state.timelineCursorCol = clampTimelineCol(desiredCol, state.timelineLinePlain, targetRow);
+  clampTimelineCursor(state, Math.sign(delta));
+  state.timelineCursorCol = clampTimelineCol(desiredCol, state.timelineLinePlain, state.timelineCursorRow);
   state.timelineCurswant = desiredCol;
   syncTimelineSelectionToCursor(state);
 }
@@ -122,9 +146,10 @@ export function placeTimelineCursorAtVisibleBottom(state: AppState, visibleRows:
 
   const row = Math.max(0, Math.min(state.scroll + Math.max(0, visibleRows - 1), lines.length - 1));
   state.timelineCursorRow = row;
-  state.timelineCursorCol = clampTimelineCol(0, lines, row);
+  clampTimelineCursor(state, -1);
+  state.timelineCursorCol = clampTimelineCol(0, lines, state.timelineCursorRow);
   state.timelineCurswant = null;
-  state.timelineVisualAnchor = { row, col: state.timelineCursorCol };
+  state.timelineVisualAnchor = { row: state.timelineCursorRow, col: state.timelineCursorCol };
   syncTimelineSelectionToCursor(state);
 }
 
@@ -136,7 +161,9 @@ export function scrollTimelineWithCursor(state: AppState, dir: number, amount: n
     viewStart: state.scroll,
     cursorRow: state.timelineCursorRow,
   }, dir, amount);
+  const previousRow = state.timelineCursorRow;
   state.timelineCursorRow = next.cursorRow;
+  clampTimelineCursor(state, Math.sign(next.cursorRow - previousRow));
   state.timelineCursorCol = clampTimelineCol(state.timelineCurswant ?? state.timelineCursorCol, state.timelineLinePlain, state.timelineCursorRow);
   state.scroll = next.viewStart;
   syncTimelineSelectionToCursor(state);
@@ -150,7 +177,9 @@ export function scrollTimelinePageWithCursor(state: AppState, dir: number, amoun
     viewStart: state.scroll,
     cursorRow: state.timelineCursorRow,
   }, dir, amount);
+  const previousRow = state.timelineCursorRow;
   state.timelineCursorRow = next.cursorRow;
+  clampTimelineCursor(state, Math.sign(next.cursorRow - previousRow));
   state.timelineCursorCol = clampTimelineCol(state.timelineCurswant ?? state.timelineCursorCol, state.timelineLinePlain, state.timelineCursorRow);
   state.scroll = next.viewStart;
   syncTimelineSelectionToCursor(state);
@@ -164,7 +193,9 @@ export function scrollTimelineViewportSticky(state: AppState, dir: number, visib
     viewStart: state.scroll,
     cursorRow: state.timelineCursorRow,
   }, dir);
+  const previousRow = state.timelineCursorRow;
   state.timelineCursorRow = next.cursorRow;
+  clampTimelineCursor(state, Math.sign(next.cursorRow - previousRow));
   state.timelineCursorCol = clampTimelineCol(state.timelineCurswant ?? state.timelineCursorCol, state.timelineLinePlain, state.timelineCursorRow);
   state.scroll = next.viewStart;
   syncTimelineSelectionToCursor(state);
