@@ -7,9 +7,9 @@ import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
 import { openTargetDetached } from "./openable";
 import { render } from "./render";
-import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, toggleContentFocus, VIEWS, type TimelineSnapshot } from "./state";
+import { clampSelection, createInitialState, focusNext, focusPrev, focusPrompt, focusSidebar, focusTimeline, selectedItem, setNotice, VIEWS, type TimelineSnapshot } from "./state";
 import { beginTimelineLoad, cursorArgs, failTimelineLoad, finishLoadingOlderTimeline, setTimelineFeed, shouldLoadOlderTimeline, startLoadingOlderTimeline } from "./timelineloading";
-import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor, setTimelineCursorToRow } from "./timelinecursor";
+import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLineStart, moveTimelineCursorRows, placeTimelineCursorAtVisibleBottom, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor, setTimelineCursorToRow } from "./timelinecursor";
 import { openableTargetAtTimelineCursor } from "./timelineopenable";
 import { handleTimelineVisualKey } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
@@ -507,6 +507,16 @@ function scrollFocusedTimeline(kind: "line" | "amount" | "page", dir: number, am
   afterTimelineCursorMove();
 }
 
+function toggleTimelineFocus(): void {
+  if (state.panelFocus === "content" && state.contentFocus === "timeline") {
+    focusPrompt(state);
+    return;
+  }
+  focusTimeline(state);
+  placeTimelineCursorAtVisibleBottom(state, timelinePageSize());
+  scheduleRender();
+}
+
 function commandHistory(delta: number): boolean {
   if (state.commandHistory.length === 0 || state.editor.buffer.length > 0 && state.commandHistoryIndex === null) return false;
   const start = state.commandHistoryIndex ?? state.commandHistory.length;
@@ -601,7 +611,7 @@ async function handleGlobalKey(key: KeyEvent): Promise<boolean> {
     return true;
   }
   if (key.type === "ctrl-n") {
-    toggleContentFocus(state);
+    toggleTimelineFocus();
     return true;
   }
   if (state.panelFocus === "content") {

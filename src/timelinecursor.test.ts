@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
-import { moveTimelineCursorCols, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor } from "./timelinecursor";
+import { moveTimelineCursorCols, moveTimelineCursorRows, placeTimelineCursorAtVisibleBottom, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor } from "./timelinecursor";
 import { render } from "./render";
 
 describe("timeline curswant", () => {
@@ -129,5 +129,19 @@ describe("timeline record-style ctrl scrolling", () => {
 
     expect(state.scroll).toBe(8);
     expect(state.timelineCursorRow).toBe(8);
+  });
+
+  test("Ctrl+N timeline focus places cursor at visible bottom like record history", () => {
+    const state = createInitialState();
+    state.timelineLinePlain = Array.from({ length: 30 }, (_, index) => ` line ${index}`);
+    state.timelineLineItemIndexes = Array.from({ length: 30 }, (_, index) => index);
+    state.items = Array.from({ length: 30 }, (_, index) => ({ id: String(index), name: "n", handle: "h", text: "t", created_at: "", url: "" }));
+    state.scroll = 10;
+
+    placeTimelineCursorAtVisibleBottom(state, 8);
+
+    expect(state.timelineCursorRow).toBe(17);
+    expect(state.timelineCursorCol).toBe(1);
+    expect(state.selectedIndex).toBe(17);
   });
 });

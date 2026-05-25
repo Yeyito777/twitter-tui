@@ -110,6 +110,24 @@ export function syncTimelineCursorToSelection(state: AppState, starts: number[])
   clampTimelineCursor(state);
 }
 
+export function placeTimelineCursorAtVisibleBottom(state: AppState, visibleRows: number): void {
+  const lines = state.timelineLinePlain;
+  if (lines.length === 0) {
+    state.timelineCursorRow = 0;
+    state.timelineCursorCol = 1;
+    state.timelineCurswant = null;
+    state.timelineVisualAnchor = { row: 0, col: 1 };
+    return;
+  }
+
+  const row = Math.max(0, Math.min(state.scroll + Math.max(0, visibleRows - 1), lines.length - 1));
+  state.timelineCursorRow = row;
+  state.timelineCursorCol = clampTimelineCol(0, lines, row);
+  state.timelineCurswant = null;
+  state.timelineVisualAnchor = { row, col: state.timelineCursorCol };
+  syncTimelineSelectionToCursor(state);
+}
+
 export function scrollTimelineWithCursor(state: AppState, dir: number, amount: number, visibleRows: number): void {
   if (state.timelineLinePlain.length === 0) return;
   const next = scrollByAmountWithCursorInViewport({
