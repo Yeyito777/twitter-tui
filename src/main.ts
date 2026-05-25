@@ -604,10 +604,6 @@ async function handleGlobalKey(key: KeyEvent): Promise<boolean> {
     toggleContentFocus(state);
     return true;
   }
-  if (key.type === "ctrl-r") {
-    void refresh();
-    return true;
-  }
   if (state.panelFocus === "content") {
     const halfPage = Math.max(1, Math.floor(timelinePageSize() / 2));
     const fullPage = Math.max(1, timelinePageSize());
@@ -617,6 +613,10 @@ async function handleGlobalKey(key: KeyEvent): Promise<boolean> {
     if (key.type === "ctrl-u") { scrollFocusedTimeline("amount", 1, halfPage); return true; }
     if (key.type === "ctrl-f") { scrollFocusedTimeline("page", -1, fullPage); return true; }
     if (key.type === "ctrl-b") { scrollFocusedTimeline("page", 1, fullPage); return true; }
+  }
+  if (key.type === "ctrl-r") {
+    void refresh();
+    return true;
   }
   return false;
 }

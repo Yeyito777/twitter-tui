@@ -328,9 +328,9 @@ export function render(state: AppState): void {
   const selectedEnd = (starts[selectedCardIndex] ?? 0) + (cards[selectedCardIndex]?.length ?? 1);
   state.timelineLineItemIndexes = lineItemIndexes;
   state.timelineLinePlain = flat.map(stripTimelineAnsi);
-  syncTimelineCursorToSelection(state, state.profile ? starts.slice(1) : starts);
-  if (selectedStart < state.scroll) state.scroll = selectedStart;
-  if (selectedEnd > state.scroll + bodyHeight) state.scroll = Math.max(0, selectedEnd - bodyHeight);
+  if (state.timelineCursorRow < 0 || state.timelineCursorRow >= state.timelineLinePlain.length) {
+    syncTimelineCursorToSelection(state, state.profile ? starts.slice(1) : starts);
+  }
   if (state.timelineCursorRow < state.scroll) state.scroll = state.timelineCursorRow;
   if (state.timelineCursorRow >= state.scroll + bodyHeight) state.scroll = Math.max(0, state.timelineCursorRow - bodyHeight + 1);
   state.scroll = Math.max(0, Math.min(state.scroll, Math.max(0, flat.length - bodyHeight)));

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
 import { moveTimelineCursorCols, moveTimelineCursorRows, scrollTimelinePageWithCursor, scrollTimelineViewportSticky, scrollTimelineWithCursor } from "./timelinecursor";
+import { render } from "./render";
 
 describe("timeline curswant", () => {
   test("blank tweet lines render cursor at the left content cell", () => {
@@ -100,6 +101,33 @@ describe("timeline record-style ctrl scrolling", () => {
     expect(state.timelineCursorRow).toBe(9);
     scrollTimelinePageWithCursor(state, 1, 5, 5); // Ctrl+B
     expect(state.scroll).toBe(4);
+    expect(state.timelineCursorRow).toBe(8);
+  });
+
+  test("render keeps line-centered scroll instead of snapping viewport to selected tweet card", () => {
+    const state = createInitialState();
+    state.cols = 120;
+    state.rows = 20;
+    state.panelFocus = "content";
+    state.contentFocus = "timeline";
+    state.items = [
+      { id: "1", name: "A", handle: "a", text: Array.from({ length: 16 }, (_, i) => `line ${i}`).join("\n"), created_at: "", url: "" },
+      { id: "2", name: "B", handle: "b", text: "second", created_at: "", url: "" },
+    ];
+    state.selectedIndex = 0;
+    state.timelineCursorRow = 8;
+    state.timelineCursorCol = 1;
+    state.scroll = 8;
+
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (() => true) as typeof process.stdout.write;
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(state.scroll).toBe(8);
     expect(state.timelineCursorRow).toBe(8);
   });
 });
