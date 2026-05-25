@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
 import { colorizeHandles, decodeHtmlEntities, displayTweetText, render, renderTweetCard } from "./render";
-import { theme } from "./theme";
+import { theme, themes } from "./theme";
 import { disableAutowrap, enableAutowrap } from "./terminal";
 
 describe("timeline loading render", () => {
@@ -22,6 +22,31 @@ describe("timeline loading render", () => {
 
     expect(output.startsWith(disableAutowrap)).toBe(true);
     expect(output.endsWith(enableAutowrap)).toBe(true);
+  });
+
+  test("topbar and separator rows are painted with current theme background", () => {
+    const previous = { ...theme };
+    Object.assign(theme, themes.cerberus);
+    const topbarBg = theme.topbarBg;
+    const appBg = theme.appBg ?? "";
+    const state = createInitialState();
+    state.cols = 80;
+    state.rows = 16;
+    state.items = [{ id: "1", name: "A", handle: "a", text: "hello", created_at: "", url: "" }];
+
+    let output = "";
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (chunk: string | Uint8Array) => { output += String(chunk); return true; };
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+      Object.assign(theme, previous);
+    }
+
+    expect(output).toContain(topbarBg);
+    expect(output).toContain(`${appBg}\x1b[K`);
+    expect(output).toContain("─".repeat(10));
   });
 
   test("thread loads show replies loader below cached main tweet", () => {

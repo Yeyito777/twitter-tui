@@ -280,9 +280,7 @@ function renderTopbar(state: AppState, width: number): string {
   const spinner = state.notice.loading ? `${LOADING_FRAMES[state.loadingFrameIndex % LOADING_FRAMES.length]} ` : "";
   const descriptor = `${state.title} ${theme.dim}(${state.selectedIndex + Math.min(1, state.items.length)}/${state.items.length})${theme.reset}`;
   const text = ` 𝕏 Twitter [${focusLabel(state)}] — ${spinner}${descriptor}`;
-  const padded = padVisibleRightToWidth(`${theme.text}${theme.bold}${text}${theme.boldOff}`, width)
-    .replaceAll(theme.reset, `${theme.reset}${theme.topbarBg}`);
-  return `${theme.topbarBg}${padded}${theme.reset}`;
+  return line(`${theme.text}${theme.bold}${text}${theme.boldOff}${theme.reset}`, width, theme.topbarBg);
 }
 
 export function render(state: AppState): void {
@@ -316,7 +314,7 @@ export function render(state: AppState): void {
 
   const mainCol = sidebarW + 1;
   out.push(moveTo(1, mainCol) + renderTopbar(state, mainW));
-  out.push(moveTo(2, mainCol) + `${timelineFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`);
+  out.push(moveTo(2, mainCol) + line(`${timelineFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`, mainW, bg));
   const timelineInVisual = timelineFocused && (state.editor.mode === "visual" || state.editor.mode === "visual-line");
 
   const cards: string[][] = [];
@@ -379,7 +377,7 @@ export function render(state: AppState): void {
     out.push(moveTo(bodyTop + r, mainCol) + line(content, mainW, bg));
   }
   if (promptFocused && state.autocomplete) out.push(renderAutocompletePopup(state, mainW, promptSeparatorRow, mainCol));
-  out.push(moveTo(promptSeparatorRow, mainCol) + `${promptFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`);
+  out.push(moveTo(promptSeparatorRow, mainCol) + line(`${promptFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`, mainW, bg));
 
   const mode = state.editor.mode === "insert" ? "I" : state.editor.mode === "normal" ? "N" : "V";
   const modeColor = state.editor.mode === "insert" ? theme.vimInsert : state.editor.mode === "normal" ? theme.vimNormal : theme.vimVisual;
@@ -408,7 +406,7 @@ export function render(state: AppState): void {
     }
   }
   if (statusHeight > 0) {
-    out.push(moveTo(promptBottomSeparatorRow, mainCol) + `${promptFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`);
+    out.push(moveTo(promptBottomSeparatorRow, mainCol) + line(`${promptFocused ? theme.accent : theme.borderUnfocused}${"─".repeat(mainW)}${theme.reset}`, mainW, bg));
     for (let i = 0; i < statusHeight; i++) {
       out.push(moveTo(statusTop + i, mainCol) + line(status.lines[i] ?? "", mainW, bg));
     }

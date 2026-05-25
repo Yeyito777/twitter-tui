@@ -268,7 +268,10 @@ async function applyCommandResult(result: CommandResult | null, raw: string): Pr
     case "quit": running = false; shutdown(); return true;
     case "login": void login(result.credential); return true;
     case "logout": logout(); return true;
-    case "theme_changed": scheduleRender(); return true;
+    case "theme_changed":
+      process.stdout.write(theme.cursorColor ? setCursorColor(theme.cursorColor) : resetCursorColor);
+      scheduleRender();
+      return true;
   }
 }
 
