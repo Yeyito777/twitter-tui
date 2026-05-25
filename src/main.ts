@@ -288,7 +288,7 @@ async function login(credential: string): Promise<void> {
 
   state.accountStatus = "loading";
   state.account = null;
-  setNotice(state, "Validating Twitter credentials…", "muted", true);
+  setNotice(state, "", "muted", true);
   scheduleRender();
   const previousCredentials = snapshotTwitterCliCredentials();
   try {
