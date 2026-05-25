@@ -1,8 +1,6 @@
 import type { AppState } from "./state";
 import { findOpenableTargetMatches } from "./openable";
 import { stripTimelineAnsi, timelineContentBounds } from "./timelinecursor";
-import { isTweet } from "./types";
-
 interface LogicalCursorLine {
   text: string;
   cursorOffset: number;
@@ -21,13 +19,6 @@ function logicalLineAtTimelineCursor(state: AppState): LogicalCursorLine | null 
   return { text: segment, cursorOffset };
 }
 
-function selectedTweetUrl(state: AppState): string | null {
-  const item = state.items[state.selectedIndex];
-  if (!isTweet(item)) return null;
-  const subject = item.is_retweet && item.retweeted ? item.retweeted : item;
-  return subject.url || null;
-}
-
 export function openableTargetAtTimelineCursor(state: AppState): string | null {
   const logicalLine = logicalLineAtTimelineCursor(state);
   if (logicalLine) {
@@ -36,14 +27,5 @@ export function openableTargetAtTimelineCursor(state: AppState): string | null {
     }
   }
 
-  const item = state.items[state.selectedIndex];
-  if (isTweet(item)) {
-    const subject = item.is_retweet && item.retweeted ? item.retweeted : item;
-    for (const media of subject.media ?? []) {
-      const target = media.expanded_url || media.url;
-      if (target) return target;
-    }
-  }
-
-  return selectedTweetUrl(state);
+  return null;
 }

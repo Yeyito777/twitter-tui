@@ -13,10 +13,10 @@ describe("timeline openables", () => {
     expect(openableTargetAtTimelineCursor(state)).toBe("https://example.com/path");
   });
 
-  test("falls back to selected tweet URL", () => {
+  test("does not fall back to selected tweet URL so Enter can open thread", () => {
     const state = createInitialState();
     state.items = [{ id: "1", name: "A", handle: "a", text: "no links", created_at: "", url: "https://x.com/a/status/1" }];
     state.selectedIndex = 0;
-    expect(openableTargetAtTimelineCursor(state)).toBe("https://x.com/a/status/1");
+    expect(openableTargetAtTimelineCursor(state)).toBeNull();
   });
 });
