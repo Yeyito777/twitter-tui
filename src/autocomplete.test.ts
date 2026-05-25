@@ -7,17 +7,17 @@ import { cycleAutocomplete, tryPathComplete, updateAutocomplete } from "./autoco
 import { createInitialState } from "./state";
 
 describe("prompt autocomplete", () => {
-  test("shows slash command matches at prompt start and cycles like record", () => {
+  test("shows only supported slash command matches and cycles like record", () => {
     const state = createInitialState();
-    state.editor.buffer = "/th";
+    state.editor.buffer = "/lo";
     state.editor.cursor = state.editor.buffer.length;
 
     updateAutocomplete(state);
 
     expect(state.autocomplete?.type).toBe("command");
-    expect(state.autocomplete?.matches.map((match) => match.name)).toContain("/thread");
+    expect(state.autocomplete?.matches.map((match) => match.name)).toEqual(["/login", "/logout"]);
     cycleAutocomplete(state, 1);
-    expect(state.editor.buffer).toBe("/thread");
+    expect(state.editor.buffer).toBe("/login");
   });
 
   test("shows command argument completions", () => {
@@ -28,6 +28,17 @@ describe("prompt autocomplete", () => {
     updateAutocomplete(state);
 
     expect(state.autocomplete?.matches.map((match) => match.name)).toContain("whale");
+  });
+
+  test("shows saved login completions", () => {
+    const state = createInitialState();
+    state.savedLogins = { alice: { auth_token: "a", ct0: "c" } };
+    state.editor.buffer = "/login ";
+    state.editor.cursor = state.editor.buffer.length;
+
+    updateAutocomplete(state);
+
+    expect(state.autocomplete?.matches).toEqual([{ name: "alice", desc: "saved login" }]);
   });
 
   test("tab-completes path matches", () => {

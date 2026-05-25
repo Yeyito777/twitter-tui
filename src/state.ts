@@ -1,6 +1,7 @@
 import { createEditorState, displayCursor, enterInsertMode, leaveInsertMode, type EditorState } from "./editor";
 import type { AutocompleteState } from "./autocomplete";
 import type { Account, FeedResult, TimelineItem } from "./types";
+import type { SavedLogins } from "./config";
 import type { NoticeTone } from "./theme";
 
 export type PanelFocus = "sidebar" | "content";
@@ -63,6 +64,7 @@ export interface AppState {
   profile: FeedResult["profile"] | null;
   accountStatus: AccountStatus;
   account: Account | null;
+  savedLogins: SavedLogins;
   cursors: { top?: string; bottom?: string };
   timelineLoading: boolean;
   timelineLoadingLabel: string;
@@ -108,6 +110,7 @@ export function createInitialState(): AppState {
     profile: null,
     accountStatus: "loading",
     account: null,
+    savedLogins: {},
     cursors: {},
     timelineLoading: false,
     timelineLoadingLabel: "Loading Timeline…",

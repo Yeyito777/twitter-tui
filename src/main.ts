@@ -3,7 +3,8 @@
 
 import { feedArgsForView, loadAccount, loadFeed, twitterCli } from "./backend";
 import { acceptAutocomplete, cycleAutocomplete, dismissAutocomplete, tryPathComplete, updateAutocomplete } from "./autocomplete";
-import { splitCommand, tryCommand, type CommandResult } from "./commands";
+import { loadSavedLoginsSafe, logoutCredentials, resolveLoginCredential, saveValidatedLogin, writeTwitterCliCredentials } from "./authflow";
+import { tryCommand, type CommandResult } from "./commands";
 import { cachedFeedForArgs, cachedFeedForArgsAnyAccount, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
 import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
@@ -15,7 +16,6 @@ import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLi
 import { openableTargetAtTimelineCursor } from "./timelineopenable";
 import { handleTimelineVisualKey } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
-import { setTheme, THEME_NAMES, type ThemeName } from "./theme";
 import { disableBracketedPaste, disableKittyKeyboard, enterAlt, enableBracketedPaste, enableKittyKeyboard, leaveAlt, resetCursorColor, setCursorColor } from "./terminal";
 import { theme } from "./theme";
 
@@ -204,6 +204,7 @@ async function refresh(): Promise<void> {
 }
 
 async function hydrateAccount(): Promise<void> {
+  state.savedLogins = loadSavedLoginsSafe();
   state.accountStatus = "loading";
   state.account = null;
   scheduleRender();
@@ -262,20 +263,72 @@ async function applyCommandResult(result: CommandResult | null, raw: string): Pr
   switch (result.type) {
     case "handled": return true;
     case "quit": running = false; shutdown(); return true;
-    case "refresh": await refresh(); return true;
-    case "open": {
-      const target = result.target ?? selectedUrl();
-      if (!target) setNotice(state, "nothing openable selected", "warning");
-      else openUrl(target);
-      return true;
-    }
-    case "load": await load(result.args, result.title); return true;
-    case "action": await action(result.label, result.args, result.refresh ? refresh : undefined); return true;
+    case "login": void login(result.credential); return true;
+    case "logout": logout(); return true;
+    case "theme_changed": scheduleRender(); return true;
   }
 }
 
-function commandHelp(): void {
-  void applyCommandResult(tryCommand("/help", state), "/help");
+async function login(credential?: string): Promise<void> {
+  if (!credential) {
+    setNotice(state, "Launching twitter login…", "muted", true);
+    scheduleRender();
+    try {
+      await twitterCli(["login"], 10 * 60 * 1000);
+      state.accountStatus = "loading";
+      state.account = null;
+      const account = await loadAccount();
+      state.account = account;
+      state.accountStatus = "authenticated";
+      setNotice(state, "", "muted");
+    } catch (error) {
+      state.accountStatus = "error";
+      setNotice(state, error instanceof Error ? error.message : String(error), "error");
+    } finally {
+      scheduleRender();
+    }
+    return;
+  }
+
+  const credentials = resolveLoginCredential(state.savedLogins, credential);
+  if (!credentials) {
+    setNotice(state, "Usage: /login [saved-login|auth_token ct0]", "warning");
+    scheduleRender();
+    return;
+  }
+
+  state.accountStatus = "loading";
+  state.account = null;
+  setNotice(state, "Validating Twitter credentials…", "muted", true);
+  scheduleRender();
+  try {
+    writeTwitterCliCredentials(credentials);
+    const account = await loadAccount();
+    state.account = account;
+    state.accountStatus = "authenticated";
+    state.savedLogins = saveValidatedLogin(state.savedLogins, account, credentials);
+    setNotice(state, "", "muted");
+  } catch (error) {
+    state.accountStatus = "error";
+    setNotice(state, error instanceof Error ? error.message : String(error), "error");
+  } finally {
+    scheduleRender();
+  }
+}
+
+function logout(): void {
+  try {
+    logoutCredentials();
+  } catch (error) {
+    setNotice(state, `Failed to clear config: ${(error as Error).message}`, "error");
+    scheduleRender();
+    return;
+  }
+  state.accountStatus = "error";
+  state.account = null;
+  state.autocomplete = null;
+  setNotice(state, "Logged out.", "success");
+  scheduleRender();
 }
 
 async function submit(text: string): Promise<void> {
@@ -303,127 +356,8 @@ async function submit(text: string): Promise<void> {
   }
 
   if (await applyCommandResult(tryCommand(raw, state), raw)) return;
-
-  const withoutSlash = raw.slice(1);
-  const [cmdRaw, ...rest] = splitCommand(withoutSlash);
-  const cmd = (cmdRaw ?? "").toLowerCase();
-  const restText = withoutSlash.slice(cmdRaw.length).trimStart();
-  switch (cmd) {
-    case "h":
-    case "help": commandHelp(); break;
-    case "home": await load(["timeline", "-n", "35"], "Home"); break;
-    case "latest": await load(["timeline", "--latest", "-n", "35"], "Latest"); break;
-    case "refresh": await refresh(); break;
-    case "notif":
-    case "notifications": await load(["notifications", "-n", "35"], "Notifications"); break;
-    case "bookmarks": await load(["bookmarks", "-n", "35"], "Bookmarks"); break;
-    case "bms": await load(["bookmarks", "-n", "35"], "Bookmarks"); break;
-    case "trends":
-    case "trending": await load(["trending", "-n", "35"], "Trending"); break;
-    case "search":
-    case "s":
-      if (!restText) setNotice(state, "usage: /search <query>", "warning");
-      else await load(["search", "-n", "35", ...rest], "Search");
-      break;
-    case "user":
-    case "tweets":
-      if (!rest[0]) setNotice(state, "usage: /user @handle", "warning");
-      else await load(["tweets", rest[0], "-n", "35"], `@${rest[0].replace(/^@/, "")}`);
-      break;
-    case "profile":
-    case "p":
-      if (!rest[0]) setNotice(state, "usage: /profile @handle", "warning");
-      else await load(["profile", rest[0]], `@${rest[0].replace(/^@/, "")}`);
-      break;
-    case "tweet":
-      if (!rest[0]) setNotice(state, "usage: /tweet <id|url>", "warning");
-      else await load(["tweet", rest[0]], "Tweet");
-      break;
-    case "thread": {
-      const id = rest[0] ?? selectedTweetId();
-      if (!id) setNotice(state, "usage: /thread <id|url> or select a tweet", "warning");
-      else await load(["thread", id], "Thread");
-      break;
-    }
-    case "dms": await load(["dms"], "DMs"); break;
-    case "dm":
-      if (!rest[0]) setNotice(state, "usage: /dm <conversation-id|@handle>", "warning");
-      else await load(["dm", rest[0]], "DM");
-      break;
-    case "post":
-    case "tweetit":
-      if (!restText) setNotice(state, "usage: /post <text>", "warning");
-      else await action("Posting", ["post", restText], refresh);
-      break;
-    case "reply": {
-      const maybeId = rest[0] && /^\d{5,}|https?:/.test(rest[0]) ? rest[0] : selectedTweetId();
-      const replyText = maybeId === rest[0] ? rest.slice(1).join(" ") : restText;
-      if (!maybeId || !replyText) setNotice(state, "usage: /reply [tweet] <text>", "warning");
-      else await action("Replying", ["reply", maybeId, replyText], refresh);
-      break;
-    }
-    case "quote": {
-      const maybeId = rest[0] && /^\d{5,}|https?:/.test(rest[0]) ? rest[0] : selectedTweetId();
-      const quoteText = maybeId === rest[0] ? rest.slice(1).join(" ") : restText;
-      if (!maybeId || !quoteText) setNotice(state, "usage: /quote [tweet] <text>", "warning");
-      else await action("Quote tweeting", ["post", "--quote", maybeId, quoteText], refresh);
-      break;
-    }
-    case "like": {
-      const id = rest[0] ?? selectedTweetId();
-      if (!id) setNotice(state, "select a tweet or pass id", "warning");
-      else await action("Liking", ["like", id]);
-      break;
-    }
-    case "unlike": {
-      const id = rest[0] ?? selectedTweetId();
-      if (!id) setNotice(state, "select a tweet or pass id", "warning");
-      else await action("Unliking", ["unlike", id]);
-      break;
-    }
-    case "rt":
-    case "retweet": {
-      const id = rest[0] ?? selectedTweetId();
-      if (!id) setNotice(state, "select a tweet or pass id", "warning");
-      else await action("Retweeting", ["rt", id]);
-      break;
-    }
-    case "unrt": {
-      const id = rest[0] ?? selectedTweetId();
-      if (!id) setNotice(state, "select a tweet or pass id", "warning");
-      else await action("Undoing retweet", ["unrt", id]);
-      break;
-    }
-    case "bookmark":
-    case "bm": {
-      const id = rest[0] ?? selectedTweetId();
-      if (!id) setNotice(state, "select a tweet or pass id", "warning");
-      else await action("Bookmarking", ["bookmark", id]);
-      break;
-    }
-    case "delete":
-      if (!rest[0]) setNotice(state, "usage: /delete <your tweet id>", "warning");
-      else await action("Deleting", ["delete", rest[0]], refresh);
-      break;
-    case "open": {
-      const url = rest[0] ?? selectedUrl();
-      if (!url) setNotice(state, "nothing openable selected", "warning");
-      else openUrl(url);
-      break;
-    }
-    case "theme": {
-      const name = rest[0] as ThemeName | undefined;
-      if (!name || !THEME_NAMES.includes(name)) setNotice(state, `themes: ${THEME_NAMES.join(", ")}`, "warning");
-      else {
-        const err = setTheme(name);
-        setNotice(state, err ? `theme changed but not persisted: ${err}` : `theme: ${name}`, err ? "warning" : "success");
-      }
-      break;
-    }
-    case "quit":
-    case "q": running = false; shutdown(); break;
-    default: setNotice(state, `unknown command: /${cmd}. Try /help`, "warning");
-  }
+  const name = raw.split(/\s+/)[0];
+  setNotice(state, `Unknown command: ${name}`, "error");
 }
 
 function moveSelection(delta: number): void {
@@ -795,6 +729,7 @@ function start(): void {
   });
   process.on("SIGINT", () => { running = false; shutdown(); process.exit(0); });
   process.on("SIGTERM", () => { running = false; shutdown(); process.exit(0); });
+  state.savedLogins = loadSavedLoginsSafe();
   render(state);
   void hydrateAccount();
   void load(["timeline", "-n", "35"], "Home");

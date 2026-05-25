@@ -1,5 +1,5 @@
 /** Config paths and user preferences for twitter-tui. */
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { homedir } from "os";
 
 export interface OpenCommandConfig {
@@ -22,6 +22,8 @@ export interface OpenersConfig {
 }
 
 export interface AppConfig {
+  auth_token?: string;
+  ct0?: string;
   theme?: string;
   latest?: boolean;
   /** Open-on-enter commands for links/media/path targets. */
@@ -38,6 +40,17 @@ export function configDir(): string {
 export function configPath(): string {
   return `${configDir()}/config.json`;
 }
+
+export function savedLoginsPath(): string {
+  return `${configDir()}/saved-logins.json`;
+}
+
+export interface TwitterCredentials {
+  auth_token: string;
+  ct0: string;
+}
+
+export type SavedLogins = Record<string, TwitterCredentials>;
 
 export function defaultOpenersConfig(): OpenersConfig {
   return {
@@ -72,6 +85,17 @@ export function loadConfig(): AppConfig {
   return JSON.parse(readFileSync(configPath(), "utf8")) as AppConfig;
 }
 
+export function loadSavedLogins(): SavedLogins {
+  const parsed = JSON.parse(readFileSync(savedLoginsPath(), "utf8")) as unknown;
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("Saved logins file must contain a JSON object.");
+  return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, TwitterCredentials] => {
+    const value = entry[1];
+    return typeof entry[0] === "string" && typeof value === "object" && value !== null && !Array.isArray(value)
+      && typeof (value as Record<string, unknown>).auth_token === "string"
+      && typeof (value as Record<string, unknown>).ct0 === "string";
+  }).map(([name, value]) => [name, { auth_token: value.auth_token.trim(), ct0: value.ct0.trim() }]));
+}
+
 function loadConfigIfPresent(): AppConfig {
   try {
     return loadConfig();
@@ -98,4 +122,17 @@ export function saveConfig(config: AppConfig): void {
     ...config,
     ...(existing.openers || config.openers ? { openers: { ...existing.openers, ...config.openers } } : {}),
   });
+}
+
+export function saveSavedLogins(savedLogins: SavedLogins): void {
+  const sortedEntries = Object.entries(savedLogins).sort((a, b) => a[0].localeCompare(b[0]));
+  writeSecureJson(savedLoginsPath(), Object.fromEntries(sortedEntries));
+}
+
+export function clearConfig(): void {
+  const config = loadConfigIfPresent();
+  delete config.auth_token;
+  delete config.ct0;
+  if (Object.keys(config).length > 0) writeSecureJson(configPath(), config);
+  else rmSync(configPath(), { force: true });
 }
