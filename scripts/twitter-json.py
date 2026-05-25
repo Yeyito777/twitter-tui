@@ -5,6 +5,7 @@ It reuses the user's twitter-cli credentials/API implementation, but emits the p
 objects instead of human-formatted text so the Bun TUI can render rich cards.
 """
 import argparse
+import copy
 import json
 import os
 import sys
@@ -35,6 +36,73 @@ def emit(payload):
     print(json.dumps(payload, ensure_ascii=False))
 
 
+def timeline_item_content_is_promoted(item):
+    if not isinstance(item, dict):
+        return False
+    if item.get("promotedMetadata") or item.get("promoted_metadata"):
+        return True
+    metadata = item.get("promotedMetadata", {})
+    if isinstance(metadata, dict) and (metadata.get("advertiser_results") or metadata.get("adMetadataContainer")):
+        return True
+    return False
+
+
+def client_event_is_promoted(container):
+    if not isinstance(container, dict):
+        return False
+    info = container.get("clientEventInfo", {})
+    if not isinstance(info, dict):
+        return False
+    component = str(info.get("component", "")).lower()
+    if "promoted" in component:
+        return True
+    timelines = info.get("details", {}).get("timelinesDetails", {}) if isinstance(info.get("details"), dict) else {}
+    injection_type = str(timelines.get("injectionType", "")).lower() if isinstance(timelines, dict) else ""
+    return "promoted" in injection_type
+
+
+def timeline_entry_is_promoted(entry):
+    entry_id = str(entry.get("entryId", "")).lower()
+    if entry_id.startswith("promoted") or "promoted-tweet" in entry_id:
+        return True
+    content = entry.get("content", {})
+    if client_event_is_promoted(content):
+        return True
+    return timeline_item_content_is_promoted(content.get("itemContent", {}))
+
+
+def timeline_module_item_is_promoted(item_wrapper):
+    if client_event_is_promoted(item_wrapper):
+        return True
+    item = item_wrapper.get("item", {}) if isinstance(item_wrapper, dict) else {}
+    if client_event_is_promoted(item):
+        return True
+    return timeline_item_content_is_promoted(item.get("itemContent", {}) if isinstance(item, dict) else {})
+
+
+def filter_promoted_entries(entries):
+    """Remove promoted/ad timeline entries before parsing."""
+    filtered = []
+    for entry in entries:
+        if timeline_entry_is_promoted(entry):
+            continue
+        content = entry.get("content", {})
+        if content.get("__typename") == "TimelineTimelineModule":
+            items = content.get("items", [])
+            clean_items = [item for item in items if not timeline_module_item_is_promoted(item)]
+            if len(clean_items) != len(items):
+                if not clean_items:
+                    continue
+                entry = copy.deepcopy(entry)
+                entry["content"]["items"] = clean_items
+        filtered.append(entry)
+    return filtered
+
+
+def parse_non_promoted_timeline_entries(entries):
+    return parse_timeline_entries(filter_promoted_entries(entries))
+
+
 def account(args):
     data = rest_get("/1.1/account/verify_credentials.json")
     emit({
@@ -61,7 +129,7 @@ def timeline(args):
     op = "HomeLatestTimeline" if args.latest else "HomeTimeline"
     data = graphql_get(Q[op], op, variables)
     entries = data["data"]["home"]["home_timeline_urt"]["instructions"][0]["entries"]
-    items, cursors = parse_timeline_entries(entries)
+    items, cursors = parse_non_promoted_timeline_entries(entries)
     emit({"ok": True, "kind": "timeline", "title": "Latest" if args.latest else "Home", "items": items, "cursors": cursors})
 
 
@@ -82,7 +150,7 @@ def search(args):
         if inst.get("type") == "TimelineAddEntries":
             entries = inst.get("entries", [])
             break
-    items, cursors = parse_timeline_entries(entries)
+    items, cursors = parse_non_promoted_timeline_entries(entries)
     emit({"ok": True, "kind": "search", "title": f"Search: {query}", "items": items, "cursors": cursors, "query": query})
 
 
@@ -106,7 +174,7 @@ def user_tweets(args):
         if inst.get("type") == "TimelineAddEntries":
             entries = inst.get("entries", [])
             break
-    items, cursors = parse_timeline_entries(entries)
+    items, cursors = parse_non_promoted_timeline_entries(entries)
     emit({"ok": True, "kind": "user", "title": f"@{args.user.lstrip('@')}", "items": items, "cursors": cursors, "user": args.user.lstrip('@')})
 
 
@@ -140,7 +208,7 @@ def thread(args):
         if inst.get("type") == "TimelineAddEntries":
             entries = inst.get("entries", [])
             break
-    items, cursors = parse_timeline_entries(entries)
+    items, cursors = parse_non_promoted_timeline_entries(entries)
     emit({"ok": True, "kind": "thread", "title": f"Thread {tweet_id}", "items": items, "cursors": cursors})
 
 
@@ -155,7 +223,7 @@ def notifications(args):
         if inst.get("type") == "TimelineAddEntries":
             entries = inst.get("entries", [])
             break
-    items, cursors = parse_timeline_entries(entries)
+    items, cursors = parse_non_promoted_timeline_entries(entries)
     emit({"ok": True, "kind": "notifications", "title": "Notifications", "items": items, "cursors": cursors})
 
 
@@ -170,7 +238,7 @@ def bookmarks(args):
         if inst.get("type") == "TimelineAddEntries":
             entries = inst.get("entries", [])
             break
-    items, cursors = parse_timeline_entries(entries)
+    items, cursors = parse_non_promoted_timeline_entries(entries)
     emit({"ok": True, "kind": "bookmarks", "title": "Bookmarks", "items": items, "cursors": cursors})
 
 
@@ -192,7 +260,7 @@ def trending(args):
         if inst.get("type") == "TimelineAddEntries":
             entries = inst.get("entries", [])
             break
-    items, cursors = parse_timeline_entries(entries)
+    items, cursors = parse_non_promoted_timeline_entries(entries)
     emit({"ok": True, "kind": "trending", "title": "Trending", "items": items, "cursors": cursors})
 
 
