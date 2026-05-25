@@ -149,8 +149,8 @@ describe("prompt context render", () => {
       process.stdout.write = originalWrite;
     }
 
-    expect(output).toContain("↳");
-    expect(output).toContain("Replying to @alice");
+    expect(output).toContain("↩ Replying:");
+    expect(output).toContain("@alice:");
   });
 });
 
