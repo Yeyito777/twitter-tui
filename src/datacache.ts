@@ -222,6 +222,7 @@ function uniqueStrings(values: readonly string[]): string[] {
 export function sidebarSurfaceKeyFromArgs(args: readonly string[]): string | null {
   switch (args[0]) {
     case "timeline": return args.includes("--latest") ? "latest" : "home";
+    case "profile": return args[1] ? `profile:${String(args[1]).replace(/^@/, "").toLowerCase()}` : "profile";
     case "notifications": return "notifications";
     case "bookmarks": return "bookmarks";
     case "trending": return "trending";

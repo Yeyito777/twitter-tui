@@ -43,30 +43,9 @@ bun run start
 ## Commands
 
 ```text
-/home
-/latest
-/search <query>
-/user @handle
-/profile @handle
-/tweet <id-or-url>
-/thread [id-or-url]
-/notifications
-/bookmarks
-/trending
-/dms
-/dm <conversation-id|@handle>
-/post <text>
-/reply [tweet] <text>
-/quote [tweet] <text>
-/like [tweet]
-/unlike [tweet]
-/rt [tweet]
-/unrt [tweet]
-/bookmark [tweet]
-/delete <tweet>
-/open [url]
+/login <saved-login|auth_token ct0|cookie-string|json>
+/logout
 /theme whale|cerberus
-/help
 /quit
 ```
 

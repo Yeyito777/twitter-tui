@@ -5,7 +5,8 @@ import { isDmConversation, isNotification, isTrend, isTweet, type TimelineItem }
 describe("feedArgsForView", () => {
   test("maps built-in sidebar views to bridge commands", () => {
     expect(feedArgsForView("home")).toEqual(["timeline", "-n", "35"]);
-    expect(feedArgsForView("latest")).toEqual(["timeline", "--latest", "-n", "35"]);
+    expect(feedArgsForView("notifications")).toEqual(["notifications", "-n", "35"]);
+    expect(feedArgsForView("bookmarks")).toEqual(["bookmarks", "-n", "35"]);
     expect(feedArgsForView("dms")).toEqual(["dms"]);
   });
 });

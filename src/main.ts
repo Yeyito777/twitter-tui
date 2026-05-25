@@ -90,7 +90,8 @@ function selectedUrl(): string | null {
 function applyFeed(feed: FeedResult, args: string[]): void {
   setTimelineFeed(state, feed, args);
   clampSelection(state);
-  const matching = VIEWS.findIndex((view) => view.id === (feed.kind === "timeline" ? (args.includes("--latest") ? "latest" : "home") : feed.kind));
+  const viewKind = feed.kind === "timeline" ? "home" : feed.kind;
+  const matching = VIEWS.findIndex((view) => view.id === viewKind);
   if (matching >= 0) {
     state.sidebarIndex = matching;
     state.activeView = VIEWS[matching].id;
@@ -138,6 +139,7 @@ function loadingLabelFor(title: string, args: string[]): string {
   if (args[0] === "notifications") return "Loading Notifs…";
   if (args[0] === "bookmarks") return "Loading Bookmarks…";
   if (args[0] === "trending") return "Loading Trends…";
+  if (args[0] === "profile") return "Loading Profile…";
   if (args[0] === "dms") return "Loading DMs…";
   if (args[0] === "search") return "Loading Search…";
   if (args[0] === "tweets") return `Loading @${String(args[1] ?? "user").replace(/^@/, "")}…`;
@@ -462,7 +464,14 @@ function commandHistory(delta: number): boolean {
 async function activateSelection(): Promise<void> {
   if (state.panelFocus === "sidebar") {
     const view = VIEWS[state.sidebarIndex];
-    if (view) await load(feedArgsForView(view.id), view.label);
+    if (view?.id === "profile") {
+      const handle = state.account?.handle;
+      if (!handle) {
+        setNotice(state, "Login first to open your profile.", "warning");
+        return;
+      }
+      await load(["profile", handle], "Profile");
+    } else if (view) await load(feedArgsForView(view.id), view.label);
     return;
   }
   const item = selectedItem(state);

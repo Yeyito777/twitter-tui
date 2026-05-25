@@ -84,10 +84,8 @@ export async function twitterCli(args: string[], timeoutMs = 60000): Promise<str
 export function feedArgsForView(viewId: string): string[] {
   switch (viewId) {
     case "home": return ["timeline", "-n", "35"];
-    case "latest": return ["timeline", "--latest", "-n", "35"];
     case "notifications": return ["notifications", "-n", "35"];
     case "bookmarks": return ["bookmarks", "-n", "35"];
-    case "trending": return ["trending", "-n", "35"];
     case "dms": return ["dms"];
     default: return ["timeline", "-n", "35"];
   }

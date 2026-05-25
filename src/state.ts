@@ -43,10 +43,9 @@ export interface ViewSpec {
 
 export const VIEWS: ViewSpec[] = [
   { id: "home", label: "Home", icon: "🏠", help: "algorithmic feed" },
-  { id: "latest", label: "Latest", icon: "🕒", help: "chronological feed" },
+  { id: "profile", label: "Profile", icon: "👤", help: "your profile" },
   { id: "notifications", label: "Notifs", icon: "🔔", help: "mentions & activity" },
   { id: "bookmarks", label: "Bookmarks", icon: "📚", help: "saved tweets" },
-  { id: "trending", label: "Trends", icon: "🔥", help: "what's hot" },
   { id: "dms", label: "DMs", icon: "💬", help: "direct messages" },
 ];
 
