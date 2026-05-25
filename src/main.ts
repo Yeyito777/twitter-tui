@@ -470,7 +470,7 @@ async function activateSelection(): Promise<void> {
         setNotice(state, "Login first to open your profile.", "warning");
         return;
       }
-      await load(["profile", handle], "Profile");
+      await load(["tweets", handle, "-n", "35", "--profile"], "Profile");
     } else if (view) await load(feedArgsForView(view.id), view.label);
     return;
   }

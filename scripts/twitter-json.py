@@ -154,8 +154,29 @@ def search(args):
     emit({"ok": True, "kind": "search", "title": f"Search: {query}", "items": items, "cursors": cursors, "query": query})
 
 
+def profile_payload_for_screen_name(screen_name):
+    data = graphql_get(Q["UserByScreenName"], "UserByScreenName", {"screen_name": screen_name, "withSafetyModeUserFields": True})
+    user = data.get("data", {}).get("user", {}).get("result", {})
+    core = user.get("core", {})
+    legacy = user.get("legacy", {})
+    return {
+        "id": user.get("rest_id", ""),
+        "name": core.get("name") or legacy.get("name", "?"),
+        "handle": core.get("screen_name") or legacy.get("screen_name", screen_name),
+        "bio": user.get("profile_bio", {}).get("description", "") or legacy.get("description", ""),
+        "location": user.get("location", {}).get("location", "") or legacy.get("location", ""),
+        "created_at": core.get("created_at", ""),
+        "followers": legacy.get("followers_count", 0),
+        "following": legacy.get("friends_count", 0),
+        "tweets": legacy.get("statuses_count", 0),
+        "verified": user.get("is_blue_verified", False),
+        "url": f"https://x.com/{screen_name}",
+    }
+
+
 def user_tweets(args):
-    user_id, _ = resolve_user_id(args.user)
+    screen_name = args.user.lstrip("@")
+    user_id, _ = resolve_user_id(screen_name)
     variables = {
         "userId": user_id,
         "count": args.count,
@@ -175,7 +196,11 @@ def user_tweets(args):
             entries = inst.get("entries", [])
             break
     items, cursors = parse_non_promoted_timeline_entries(entries)
-    emit({"ok": True, "kind": "user", "title": f"@{args.user.lstrip('@')}", "items": items, "cursors": cursors, "user": args.user.lstrip('@')})
+    payload = {"ok": True, "kind": "user", "title": f"@{screen_name}", "items": items, "cursors": cursors, "user": screen_name}
+    if getattr(args, "profile", False):
+        payload["kind"] = "profile"
+        payload["profile"] = profile_payload_for_screen_name(screen_name)
+    emit(payload)
 
 
 def single_tweet(args):
@@ -266,23 +291,7 @@ def trending(args):
 
 def profile(args):
     screen_name = args.user.lstrip("@")
-    data = graphql_get(Q["UserByScreenName"], "UserByScreenName", {"screen_name": screen_name, "withSafetyModeUserFields": True})
-    user = data.get("data", {}).get("user", {}).get("result", {})
-    core = user.get("core", {})
-    legacy = user.get("legacy", {})
-    profile_payload = {
-        "id": user.get("rest_id", ""),
-        "name": core.get("name") or legacy.get("name", "?"),
-        "handle": core.get("screen_name") or legacy.get("screen_name", screen_name),
-        "bio": user.get("profile_bio", {}).get("description", "") or legacy.get("description", ""),
-        "location": user.get("location", {}).get("location", "") or legacy.get("location", ""),
-        "created_at": core.get("created_at", ""),
-        "followers": legacy.get("followers_count", 0),
-        "following": legacy.get("friends_count", 0),
-        "tweets": legacy.get("statuses_count", 0),
-        "verified": user.get("is_blue_verified", False),
-        "url": f"https://x.com/{screen_name}",
-    }
+    profile_payload = profile_payload_for_screen_name(screen_name)
     emit({"ok": True, "kind": "profile", "title": f"@{profile_payload['handle']}", "profile": profile_payload, "items": [], "cursors": {}})
 
 
@@ -360,7 +369,7 @@ def main():
     sub = p.add_subparsers(dest="cmd", required=True)
     tl = sub.add_parser("timeline"); tl.add_argument("-n", "--count", type=int, default=30); tl.add_argument("-c", "--cursor"); tl.add_argument("-l", "--latest", action="store_true"); tl.set_defaults(fn=timeline)
     se = sub.add_parser("search"); se.add_argument("query", nargs="+"); se.add_argument("-n", "--count", type=int, default=30); se.add_argument("-c", "--cursor"); se.add_argument("-l", "--latest", action="store_true"); se.set_defaults(fn=search)
-    tws = sub.add_parser("tweets"); tws.add_argument("user"); tws.add_argument("-n", "--count", type=int, default=30); tws.add_argument("-c", "--cursor"); tws.add_argument("--replies", action="store_true"); tws.set_defaults(fn=user_tweets)
+    tws = sub.add_parser("tweets"); tws.add_argument("user"); tws.add_argument("-n", "--count", type=int, default=30); tws.add_argument("-c", "--cursor"); tws.add_argument("--replies", action="store_true"); tws.add_argument("--profile", action="store_true"); tws.set_defaults(fn=user_tweets)
     t = sub.add_parser("tweet"); t.add_argument("tweet"); t.set_defaults(fn=single_tweet)
     th = sub.add_parser("thread"); th.add_argument("tweet"); th.add_argument("-c", "--cursor"); th.set_defaults(fn=thread)
     no = sub.add_parser("notifications"); no.add_argument("-n", "--count", type=int, default=30); no.add_argument("-c", "--cursor"); no.set_defaults(fn=notifications)

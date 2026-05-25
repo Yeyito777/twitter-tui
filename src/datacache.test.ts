@@ -36,6 +36,8 @@ describe("twitter data cache", () => {
     expect(sidebarSurfaceKeyFromArgs(["timeline", "-n", "35"])).toBe("home");
     expect(sidebarSurfaceKeyFromArgs(["timeline", "--latest", "-n", "35"])).toBe("latest");
     expect(sidebarSurfaceKeyFromArgs(["profile", "@Yeyito"])).toBe("profile:yeyito");
+    expect(sidebarSurfaceKeyFromArgs(["tweets", "@Yeyito", "-n", "35", "--profile"])).toBe("profile:yeyito");
+    expect(sidebarSurfaceKeyFromArgs(["tweets", "@Yeyito", "-n", "35"])).toBeNull();
     expect(sidebarSurfaceKeyFromArgs(["notifications"])).toBe("notifications");
     expect(threadIdFromArgs(["thread", "123"])).toBe("123");
   });
