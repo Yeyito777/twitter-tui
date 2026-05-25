@@ -16,7 +16,7 @@ import { moveTimelineCursorCols, moveTimelineCursorLineEnd, moveTimelineCursorLi
 import { openableTargetAtTimelineCursor } from "./timelineopenable";
 import { handleTimelineVisualKey } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type FeedResult, type TimelineItem, type TweetItem } from "./types";
-import { disableBracketedPaste, disableKittyKeyboard, enterAlt, enableBracketedPaste, enableKittyKeyboard, leaveAlt, resetCursorColor, setCursorColor } from "./terminal";
+import { disableBracketedPaste, disableKittyKeyboard, enableAutowrap, enterAlt, enableBracketedPaste, enableKittyKeyboard, leaveAlt, resetCursorColor, setCursorColor } from "./terminal";
 import { theme } from "./theme";
 
 if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -688,12 +688,12 @@ function shutdown(): void {
   flushTwitterCacheSync();
   try { process.stdin.setRawMode(false); } catch {}
   process.stdin.pause();
-  process.stdout.write(disableBracketedPaste + disableKittyKeyboard + resetCursorColor + leaveAlt);
+  process.stdout.write(enableAutowrap + disableBracketedPaste + disableKittyKeyboard + resetCursorColor + leaveAlt);
   setTimeout(() => process.exit(0), 0);
 }
 
 function start(): void {
-  process.stdout.write(enterAlt + enableBracketedPaste + enableKittyKeyboard + (theme.cursorColor ? setCursorColor(theme.cursorColor) : ""));
+  process.stdout.write(enterAlt + enableAutowrap + enableBracketedPaste + enableKittyKeyboard + (theme.cursorColor ? setCursorColor(theme.cursorColor) : ""));
   process.stdin.setEncoding("utf8");
   process.stdin.setRawMode(true);
   process.stdin.resume();

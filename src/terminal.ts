@@ -8,6 +8,8 @@ export const enterAlt = `${ESC}?1049h`;
 export const leaveAlt = `${ESC}?1049l`;
 export const hideCursor = `${ESC}?25l`;
 export const showCursor = `${ESC}?25h`;
+export const disableAutowrap = `${ESC}?7l`;
+export const enableAutowrap = `${ESC}?7h`;
 export const enableBracketedPaste = `${ESC}?2004h`;
 export const disableBracketedPaste = `${ESC}?2004l`;
 // Push kitty keyboard mode: disambiguate + report event types + all keys + associated text.

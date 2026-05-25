@@ -2,8 +2,28 @@ import { describe, expect, test } from "bun:test";
 import { createInitialState } from "./state";
 import { colorizeHandles, decodeHtmlEntities, displayTweetText, render, renderTweetCard } from "./render";
 import { theme } from "./theme";
+import { disableAutowrap, enableAutowrap } from "./terminal";
 
 describe("timeline loading render", () => {
+  test("render disables autowrap while painting full-width rows", () => {
+    const state = createInitialState();
+    state.cols = 80;
+    state.rows = 16;
+    state.items = [{ id: "1", name: "A", handle: "a", text: "hello", created_at: "", url: "" }];
+
+    let output = "";
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (chunk: string | Uint8Array) => { output += String(chunk); return true; };
+    try {
+      render(state);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(output.startsWith(disableAutowrap)).toBe(true);
+    expect(output.endsWith(enableAutowrap)).toBe(true);
+  });
+
   test("thread loads show replies loader below cached main tweet", () => {
     const state = createInitialState();
     state.cols = 100;

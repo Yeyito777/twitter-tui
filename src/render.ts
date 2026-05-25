@@ -8,7 +8,7 @@ import { syncTimelineCursorToSelection, stripTimelineAnsi } from "./timelinecurs
 import { applyTimelineVisualSelection } from "./timelinevisual";
 import { isDmConversation, isDmMessage, isNotification, isTrend, isTweet, type TimelineItem, type TweetItem } from "./types";
 import { authorColor, theme } from "./theme";
-import { applyLineBg, clearLine, cursorBar, cursorBlock, cursorUnderline, hideCursor, moveTo, showCursor } from "./terminal";
+import { applyLineBg, clearLine, cursorBar, cursorBlock, cursorUnderline, disableAutowrap, enableAutowrap, hideCursor, moveTo, showCursor } from "./terminal";
 import { padRightToWidth, padVisibleRightToWidth, sliceByWidth, termWidth, truncateToWidth, visibleLength } from "./textwidth";
 
 const SIDEBAR_WIDTH = 28;
@@ -305,7 +305,7 @@ export function render(state: AppState): void {
   const promptTop = Math.max(bodyTop + 1, promptBottomSeparatorRow - promptRows);
   const promptSeparatorRow = promptTop - 1;
   const bodyHeight = Math.max(1, promptSeparatorRow - bodyTop);
-  const out: string[] = [hideCursor];
+  const out: string[] = [disableAutowrap, hideCursor];
   const bg = theme.appBg ?? "";
 
   const sidebar = state.sidebarOpen ? renderSidebar(state, sidebarW, rows, sidebarFocused) : [];
@@ -438,5 +438,6 @@ export function render(state: AppState): void {
       out.push(hideCursor);
     }
   }
+  out.push(enableAutowrap);
   process.stdout.write(out.join(""));
 }
