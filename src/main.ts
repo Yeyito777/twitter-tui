@@ -414,11 +414,26 @@ function restoreTimelineSnapshot(snapshot: TimelineSnapshot): void {
 }
 
 function goBackToSavedTimeline(): boolean {
-  if (!timelineFocused() || state.feedKind !== "thread") return false;
+  if (!timelineFocused() || !["thread", "profile"].includes(state.feedKind)) return false;
   const snapshot = state.timelineBackStack.pop();
   if (!snapshot) return false;
   restoreTimelineSnapshot(snapshot);
   return true;
+}
+
+async function openSelectedTweetAuthorProfile(): Promise<void> {
+  const tweet = selectedTweet();
+  const handle = tweet?.handle?.replace(/^@/, "") ?? "";
+  if (!handle) {
+    setNotice(state, "Select a tweet to open its author's profile.", "warning");
+    return;
+  }
+
+  const currentProfileHandle = state.profile?.handle?.replace(/^@/, "").toLowerCase();
+  if (state.feedKind !== "profile" || currentProfileHandle !== handle.toLowerCase()) {
+    state.timelineBackStack.push(currentTimelineSnapshot());
+  }
+  await load(["tweets", handle, "-n", "35", "--profile"], `@${handle}`);
 }
 
 function afterTimelineCursorMove(): void {
@@ -657,7 +672,7 @@ async function handleKey(key: KeyEvent): Promise<void> {
     case "s": focusSidebar(state); return;
     case "j": moveTimelineCursorRows(state, 1); afterTimelineCursorMove(); return;
     case "k": moveTimelineCursorRows(state, -1); afterTimelineCursorMove(); return;
-    case "h": moveTimelineCursorCols(state, -1); return;
+    case "h": if (state.feedKind === "profile" && goBackToSavedTimeline()) return; moveTimelineCursorCols(state, -1); return;
     case "H": if (goBackToSavedTimeline()) return; break;
     case "l": moveTimelineCursorCols(state, 1); return;
     case "0": moveTimelineCursorLineStart(state); return;
@@ -666,6 +681,7 @@ async function handleKey(key: KeyEvent): Promise<void> {
     case "G": setTimelineCursorToRow(state, Math.max(0, state.timelineLinePlain.length - 1)); afterTimelineCursorMove(); return;
     case "r": prepareReply(); return;
     case "Q": prepareQuote(); return;
+    case "p": await openSelectedTweetAuthorProfile(); return;
     case "b": {
       const id = selectedTweetId();
       if (id) void action("Bookmarking", ["bookmark", id]);
