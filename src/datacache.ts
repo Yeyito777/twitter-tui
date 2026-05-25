@@ -1,9 +1,10 @@
 /**
  * Record-style stale-while-revalidate cache for Twitter surfaces and threads.
  *
- * The cache is account-scoped, debounced, atomically persisted, and compacted on
- * disk. Sidebar surfaces hydrate instantly when available; network loads then
- * revalidate in the background. The last 100 opened tweet threads are kept.
+ * The cache is strictly account-scoped, debounced, atomically persisted, and
+ * compacted on disk. Sidebar surfaces hydrate instantly once the active account
+ * is known; network loads then revalidate in the background. The last 100 opened
+ * tweet threads are kept per account.
  */
 
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "fs";
@@ -270,23 +271,6 @@ export function cachedFeedForArgs(accountId: string, args: readonly string[]): C
   const threadId = threadIdFromArgs(args);
   if (threadId) return loadCachedThread(accountId, threadId);
   return null;
-}
-
-export function cachedFeedForArgsAnyAccount(args: readonly string[]): CachedFeed | null {
-  const cache = loadCacheFile();
-  let best: CachedFeed | null = null;
-  for (const account of Object.values(cache.accounts)) {
-    const surfaceKey = sidebarSurfaceKeyFromArgs(args);
-    const threadId = threadIdFromArgs(args);
-    const candidate = surfaceKey
-      ? cloneCachedFeed(account.surfaces?.[surfaceKey])
-      : threadId
-        ? cloneCachedFeed(account.threads?.[threadId])
-        : null;
-    if (!candidate) continue;
-    if (!best || candidate.savedAt > best.savedAt) best = candidate;
-  }
-  return best;
 }
 
 export function saveFeedForArgs(accountId: string, args: readonly string[], feed: FeedResult): void {

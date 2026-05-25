@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
-import { cachedFeedForArgs, cachedFeedForArgsAnyAccount, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
+import { cachedFeedForArgs, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
 import type { FeedResult } from "./types";
 
 let tempConfig: string;
@@ -49,10 +49,23 @@ describe("twitter data cache", () => {
     expect(cached?.args).toEqual(["timeline", "-n", "35"]);
   });
 
-  test("hydrates from any account while startup account validation is still pending", () => {
-    saveFeedForArgs("real-account", ["timeline", "-n", "35"], feed("warm"));
+  test("surfaces are strictly account-specific", () => {
+    saveFeedForArgs("account-a", ["timeline", "-n", "35"], feed("a-home"));
+    saveFeedForArgs("account-b", ["timeline", "-n", "35"], feed("b-home"));
+
+    expect(cachedFeedForArgs("account-a", ["timeline", "-n", "35"])?.feed.items[0]).toMatchObject({ id: "a-home" });
+    expect(cachedFeedForArgs("account-b", ["timeline", "-n", "35"])?.feed.items[0]).toMatchObject({ id: "b-home" });
     expect(cachedFeedForArgs("default", ["timeline", "-n", "35"])).toBeNull();
-    expect(cachedFeedForArgsAnyAccount(["timeline", "-n", "35"])?.feed.items[0]).toMatchObject({ id: "warm" });
+    expect(cachedFeedForArgs("missing-account", ["timeline", "-n", "35"])).toBeNull();
+  });
+
+  test("threads are strictly account-specific", () => {
+    saveFeedForArgs("account-a", ["thread", "123"], feed("a-thread"));
+    saveFeedForArgs("account-b", ["thread", "123"], feed("b-thread"));
+
+    expect(cachedFeedForArgs("account-a", ["thread", "123"])?.feed.items[0]).toMatchObject({ id: "a-thread" });
+    expect(cachedFeedForArgs("account-b", ["thread", "123"])?.feed.items[0]).toMatchObject({ id: "b-thread" });
+    expect(cachedFeedForArgs("missing-account", ["thread", "123"])).toBeNull();
   });
 
   test("keeps only the last 100 opened thread caches", () => {

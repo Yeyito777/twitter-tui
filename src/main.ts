@@ -5,7 +5,7 @@ import { feedArgsForView, loadAccount, loadFeed, twitterCli } from "./backend";
 import { acceptAutocomplete, cycleAutocomplete, dismissAutocomplete, tryPathComplete, updateAutocomplete } from "./autocomplete";
 import { loadConfiguredCredentials, loadSavedLoginsSafe, logoutCredentials, resolveLoginCredential, restoreTwitterCliCredentials, saveValidatedLogin, snapshotTwitterCliCredentials, writeTwitterCliCredentials } from "./authflow";
 import { tryCommand, type CommandResult } from "./commands";
-import { cachedFeedForArgs, cachedFeedForArgsAnyAccount, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
+import { cachedFeedForArgs, flushTwitterCacheSync, saveFeedForArgs, sidebarSurfaceKeyFromArgs, threadIdFromArgs } from "./datacache";
 import { displayCursor, handleEditorKey, resetEditor } from "./editor";
 import { parseInput, PasteBuffer, type KeyEvent } from "./input";
 import { openTargetDetached } from "./openable";
@@ -100,15 +100,14 @@ function applyFeed(feed: FeedResult, args: string[]): void {
   }
 }
 
-function cacheAccountId(): string {
-  return state.account?.id || "default";
+function cacheAccountId(): string | null {
+  return state.account?.id ?? null;
 }
 
 function cachedFeedForCurrentAccount(args: string[]): FeedResult | null {
   const accountId = cacheAccountId();
-  const cached = cachedFeedForArgs(accountId, args)
-    ?? (accountId !== "default" ? cachedFeedForArgs("default", args) : null)
-    ?? cachedFeedForArgsAnyAccount(args);
+  if (!accountId) return null;
+  const cached = cachedFeedForArgs(accountId, args);
   return cached?.feed ?? null;
 }
 
@@ -117,8 +116,10 @@ function isCacheableArgs(args: string[]): boolean {
 }
 
 function persistFeedForArgs(args: string[], feed: FeedResult): void {
+  const accountId = cacheAccountId();
+  if (!accountId) return;
   if (!isCacheableArgs(args)) return;
-  saveFeedForArgs(cacheAccountId(), args, feed);
+  saveFeedForArgs(accountId, args, feed);
 }
 
 function currentFeedResult(): FeedResult {
@@ -728,8 +729,10 @@ function start(): void {
   process.on("SIGTERM", () => { running = false; shutdown(); process.exit(0); });
   state.savedLogins = loadSavedLoginsSafe();
   render(state);
-  void hydrateAccount();
-  void load(["timeline", "-n", "35"], "Home");
+  void (async () => {
+    await hydrateAccount();
+    await load(["timeline", "-n", "35"], "Home");
+  })();
 }
 
 start();
