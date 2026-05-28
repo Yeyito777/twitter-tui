@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { createEditorState, handleEditorKey } from "./editor";
 
+function sendChars(editor: ReturnType<typeof createEditorState>, chars: string): void {
+  for (const char of chars) handleEditorKey(editor, { type: "char", char });
+}
+
 describe("editor curswant", () => {
   test("insert-mode up/down preserve preferred column across short lines", () => {
     const editor = createEditorState("abcdef\nx\n123456789", "insert");
@@ -55,5 +59,28 @@ describe("editor curswant", () => {
     handleEditorKey(editor, { type: "char", char: "h" });
     expect(editor.cursor).toBe(3);
     expect(editor.buffer[editor.cursor]).toBe("c");
+  });
+});
+
+describe("editor delete commands", () => {
+  test("delete commands change text without entering yank/paste state", () => {
+    const cases: Array<[string, (editor: ReturnType<typeof createEditorState>) => void]> = [
+      ["x", (editor) => sendChars(editor, "x")],
+      ["X", (editor) => { editor.cursor = 1; sendChars(editor, "X"); }],
+      ["dd", (editor) => sendChars(editor, "dd")],
+      ["D", (editor) => sendChars(editor, "D")],
+      ["dw", (editor) => sendChars(editor, "dw")],
+      ["visual d", (editor) => sendChars(editor, "vwd")],
+    ];
+
+    for (const [name, run] of cases) {
+      const editor = createEditorState("alpha beta\ngamma", "normal");
+      run(editor);
+
+      expect(editor.buffer, name).not.toBe("alpha beta\ngamma");
+      expect(editor.pendingOperator, name).toBeNull();
+      expect(editor.pendingOperatorKey, name).toBeNull();
+      expect(editor.pendingKeys, name).toBe("");
+    }
   });
 });
